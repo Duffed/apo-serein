@@ -1,0 +1,125 @@
+<Window x:Class="Serein.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Serein.App" Style="{StaticResource {x:Type Window}}" Title="Serein · Equalizer" Width="1220" Height="880" MinWidth="1000" MinHeight="740" WindowStartupLocation="CenterScreen" PreviewKeyDown="EditHistoryKeyDown" PreviewKeyUp="CurveModifierKeyUp">
+ <Grid Background="{DynamicResource Bg}">
+  <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="245" MinWidth="210" MaxWidth="480"/><ColumnDefinition Width="*" MinWidth="760"/></Grid.ColumnDefinitions>
+  <Border Background="{DynamicResource Sidebar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+   <DockPanel Margin="20,26,18,18">
+    <StackPanel DockPanel.Dock="Top">
+     <StackPanel Orientation="Horizontal" Margin="0,0,0,20"><TextBlock Text="Serein" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/><TextBlock Text="0.1" FontSize="10" Foreground="{DynamicResource Muted}" Margin="8,0,0,5" VerticalAlignment="Bottom"/></StackPanel>
+
+     <Button Content="Kopfhörer-Presets" Click="OpenCatalog" HorizontalContentAlignment="Left" Margin="0,0,0,24"/>
+     <TextBlock Text="PROFILE" FontSize="10" Foreground="{DynamicResource Muted}" Margin="8,0,0,8"/>
+     <CheckBox x:Name="CompactProfilesBox" Style="{StaticResource InlineCheckBox}" Content="Kompakte Ansicht" Margin="8,0,0,10" Checked="CompactProfilesChanged" Unchecked="CompactProfilesChanged"/>
+     <TextBox x:Name="ProfileSearch" TextChanged="SearchProfiles" ToolTip="Profile durchsuchen" AutomationProperties.Name="Profile durchsuchen" Margin="0,0,0,8"/>
+     <TextBlock x:Name="MigrationNotice" Visibility="Collapsed" FontSize="10" Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Margin="4,2,4,8"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom">
+     <Button Content="＋ Neues Profil" Click="NewProfile" Margin="0,16,0,8"/>
+     <Button x:Name="UndoDeleteButton" Content="Löschen rückgängig" Click="UndoDelete" Visibility="Collapsed" Margin="0,0,0,8"/>
+     <Button x:Name="ImportButton" Content="Importieren …" Click="OpenImportMenu" Margin="0,0,0,8">
+      <Button.ContextMenu><ContextMenu Background="{DynamicResource Panel}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Line}"><MenuItem Header="Datei importieren …" Click="ImportFile"/><MenuItem Header="APO-Text einfügen …" Click="ImportText"/><Separator/><MenuItem Header="Peace-Profile übernehmen" Click="ImportPeaceProfiles"/></ContextMenu></Button.ContextMenu>
+     </Button>
+
+     <Button Content="APO verbinden / verwalten" Click="ManageApo" Margin="0,8,0,0"/>
+     <DockPanel Margin="0,16,0,0"><TextBlock Text="Darstellung" VerticalAlignment="Center"/><ComboBox x:Name="ThemeBox" Width="106" HorizontalAlignment="Right" Margin="8,0,0,0" SelectionChanged="ChangeAppearance" AutomationProperties.Name="Darstellung"><ComboBoxItem Content="Hell"/><ComboBoxItem Content="Dunkel"/></ComboBox></DockPanel>
+
+    </StackPanel>
+    <ListBox x:Name="ProfileList" SelectionChanged="SelectProfile" AllowDrop="True" PreviewMouseMove="ProfileDragMove" PreviewMouseLeftButtonUp="ProfileDragRelease" PreviewDragOver="ProfileDragOver" PreviewDragLeave="ProfileDragLeave" PreviewDrop="ProfileDrop" PreviewKeyDown="ProfileOrderKeyDown">
+     <ListBox.ItemContainerStyle>
+      <Style TargetType="ListBoxItem" BasedOn="{StaticResource ProfileRow}">
+       <Style.Triggers><DataTrigger Binding="{Binding CompactProfileView,RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}}}" Value="True"><Setter Property="Padding" Value="8,6"/><Setter Property="Margin" Value="0,1,10,1"/></DataTrigger></Style.Triggers>
+      </Style>
+     </ListBox.ItemContainerStyle>
+     <ListBox.ItemTemplate><DataTemplate>
+      <Grid ToolTip="{Binding SourceSummary}">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/></Grid.ColumnDefinitions>
+       <Border Background="Transparent" Cursor="SizeAll" PreviewMouseLeftButtonDown="ProfileDragStart" ToolTip="Ziehen zum Verschieben · Alt+↑ / Alt+↓ für das ausgewählte Profil" AutomationProperties.Name="Profil verschieben">
+        <TextBlock Text="&#x283F;" FontFamily="Segoe UI Symbol" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource Muted}">
+         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver,RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Opacity" Value="0.85"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+        </TextBlock>
+       </Border>
+       <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="2,0,3,0">
+        <DockPanel><TextBlock DockPanel.Dock="Right" Text="&#xE735;" FontFamily="Segoe MDL2 Assets" FontSize="10" Foreground="{DynamicResource Muted}" Margin="6,0,0,0" VerticalAlignment="Center">
+         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Favorite}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+        </TextBlock><TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Normal" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/></DockPanel>
+        <TextBlock Text="{Binding SourceSummary}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis">
+         <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding CompactProfileView,RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}}}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+        </TextBlock>
+       </StackPanel>
+       <Button Grid.Column="2" Click="DeleteProfileFromRow" Width="24" Height="26" MinHeight="0" Padding="3" Margin="0" VerticalAlignment="Center" ToolTip="Profil löschen" AutomationProperties.Name="Profil löschen">
+        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}"><Setter Property="Opacity" Value="0"/><Setter Property="IsHitTestVisible" Value="False"/><Setter Property="Focusable" Value="False"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="Cursor" Value="Arrow"/>
+         <Style.Triggers><DataTrigger Binding="{Binding IsMouseOver,RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/><Setter Property="Focusable" Value="True"/></DataTrigger><DataTrigger Binding="{Binding IsKeyboardFocusWithin,RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/><Setter Property="Focusable" Value="True"/></DataTrigger></Style.Triggers>
+        </Style></Button.Style>
+        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74D;" FontSize="12" Foreground="{DynamicResource Danger}"/>
+       </Button>
+      </Grid>
+     </DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+   </DockPanel>
+  </Border>
+  <GridSplitter Grid.Column="0" Width="7" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" ResizeDirection="Columns" ResizeBehavior="CurrentAndNext" DragCompleted="SidebarResized" MouseDoubleClick="ResetSidebarWidth" ToolTip="Seitenleiste breiter oder schmaler ziehen · Doppelklick setzt zurück" AutomationProperties.Name="Breite der Seitenleiste"/>
+  <Grid Grid.Column="1" Margin="28,26,28,16">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <DockPanel Margin="0,0,0,22"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"><StackPanel x:Name="HistoryActions" Orientation="Horizontal" Margin="0,0,24,0" Visibility="Collapsed"><Button x:Name="UndoEditButton" Visibility="Collapsed" Width="32" Padding="6" Margin="0,0,4,0" Click="UndoEqEdit" IsEnabled="False" ToolTip="Rückgängig (Strg+Z)" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="EQ-Änderung rückgängig"><TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="14"/></Button><Button x:Name="RedoEditButton" Visibility="Collapsed" Width="32" Padding="6" Margin="0" Click="RedoEqEdit" IsEnabled="False" ToolTip="Wiederholen (Strg+Y)" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="EQ-Änderung wiederholen"><TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="14"/></Button></StackPanel><ToggleButton x:Name="Power" Content="EQ ein" Click="ToggleBypass" Style="{StaticResource EqToggle}" Margin="0,0,8,0" AutomationProperties.Name="Equalizer ein- oder ausschalten"/><Button x:Name="SaveButton" Width="32" Padding="6" Click="SaveProfile" IsEnabled="False" ToolTip="Alle Änderungen gespeichert" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Änderungen speichern"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger></Style.Triggers></Style></Button.Style><TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="14"/></Button><Border Width="22" Height="32" ToolTip="{Binding Text,ElementName=Status}" AutomationProperties.Name="{Binding Text,ElementName=Status}">
+     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="&#xE946;"/><Setter Property="Foreground" Value="{DynamicResource Muted}"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=Status}" Value="Konfiguration angewendet"><Setter Property="Text" Value="&#xE73E;"/><Setter Property="Foreground" Value="{DynamicResource StatusSuccess}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+    </Border></StackPanel><StackPanel><TextBlock Text="AUSGABEGERÄT" FontSize="10" Foreground="{DynamicResource Muted}" Margin="0,0,0,7"/><ComboBox x:Name="DeviceBox" Width="350" HorizontalAlignment="Left" SelectionChanged="SelectDevice" AutomationProperties.Name="Ausgabegerät"/></StackPanel></DockPanel>
+   <StackPanel Grid.Row="1" Margin="0,0,0,14"><DockPanel><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><ToggleButton x:Name="FavoriteBox" Style="{StaticResource FavoriteToggle}" Checked="FavoriteChanged" Unchecked="FavoriteChanged" Margin="0,0,10,0" AutomationProperties.Name="Favorit"/><Button Content="Duplizieren" Click="DuplicateProfile"/><Button Content="Umbenennen" Click="RenameProfile"/></StackPanel><TextBlock x:Name="ProfileTitle" Text="Neutrales Profil" FontSize="26" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/></DockPanel><DockPanel Margin="0,7,0,0"><Button x:Name="PresetResetButton" DockPanel.Dock="Right" Content="Preset wiederherstellen" Click="RestorePreset" Visibility="Hidden" Padding="9,4" MinHeight="28" FontSize="11" Margin="12,0,0,0"/><TextBlock MouseLeftButtonUp="ShowProfileInfo" Cursor="Hand" x:Name="SourceLabel" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="TextDecorations" Value="Underline"/></Trigger></Style.Triggers></Style></TextBlock.Style></TextBlock></DockPanel></StackPanel>
+   <Border Grid.Row="2" Background="{DynamicResource Panel}" CornerRadius="12" Padding="16,14" Margin="0,0,0,18">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="210"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <DockPanel><TabControl x:Name="CurveLayerTabs" DockPanel.Dock="Right" DisplayMemberPath="Label" SelectionChanged="ChangeCurveLayer" Padding="0" AutomationProperties.Name="EQ-Bearbeitungsstufe">
+      <TabControl.Template><ControlTemplate TargetType="TabControl"><TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/></ControlTemplate></TabControl.Template>
+      <TabControl.ItemContainerStyle><Style TargetType="TabItem" BasedOn="{StaticResource DefaultTabItemStyle}"><Setter Property="Padding" Value="11,6"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Arrow"/></Style></TabControl.ItemContainerStyle>
+     </TabControl><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="FREQUENZGANG" FontSize="10" Foreground="{DynamicResource Muted}"/><TextBlock Text=" · Vorschau 48 kHz" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></DockPanel>
+     <local:CurveView x:Name="Curve" Grid.Row="1" Editable="True" Focusable="True" EditStarting="StartCurveEdit" Edited="CurveEdited" EditCompleted="CompleteCurveEdit"/>
+     <Grid Grid.Row="2" Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="75"/><ColumnDefinition Width="210"/></Grid.ColumnDefinitions><TextBlock Text="Preamp" VerticalAlignment="Center"/><Slider x:Name="PreampSlider" Grid.Column="1" Minimum="-40" Maximum="20" ValueChanged="PreampChanged" VerticalAlignment="Center" AutomationProperties.Name="Preamp"/><TextBox x:Name="PreampValue" TextChanged="PendingPreampChanged" Style="{StaticResource PreampEditor}" Grid.Column="2" Margin="8,0,0,0" LostFocus="CommitPreamp" KeyDown="PreampKey" AutomationProperties.Name="Preamp in Dezibel"/><StackPanel Grid.Column="3" Margin="18,0,0,0"><TextBlock x:Name="HeadroomLabel" Foreground="{DynamicResource Accent}" FontSize="11"/><CheckBox x:Name="AutoHeadroomBox" Style="{StaticResource InlineCheckBox}" Content="Preamp automatisch absenken" FontSize="11" Margin="0,3,0,0" Checked="AutoHeadroomChanged" Unchecked="AutoHeadroomChanged"/></StackPanel></Grid>
+    </Grid>
+   </Border>
+   <TabControl Grid.Row="3" x:Name="EqTabs" SelectionChanged="ChangeEqView"><TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}"/></ControlTemplate></TabControl.Template>
+    <TabItem Header="Grafischer EQ"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><DockPanel Margin="0,0,0,10"><StackPanel x:Name="BandActions" DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="10 Bänder" Click="Bands10"/><Button Content="31 Bänder" Click="Bands31"/><Button Content="Zurücksetzen" Click="ResetGraphic"/></StackPanel><TextBlock x:Name="GraphicStageLabel" Text="Persönliche Anpassung · zusätzlich zur importierten Korrektur" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
+     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalContentAlignment="Stretch"><ItemsControl x:Name="BandList" VerticalAlignment="Stretch"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource Panel}" CornerRadius="7" Width="59" Margin="0,0,5,3" Padding="4,9"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBlock Text="{Binding Gain,StringFormat={}{0:+0.0;-0.0;0.0}}" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource Accent}"/><Slider Grid.Row="1" Orientation="Vertical" VerticalAlignment="Stretch" MinHeight="64" Margin="0,10,0,5" Minimum="{Binding SliderMinimum,Mode=OneTime}" Maximum="{Binding SliderMaximum,Mode=OneTime}" TickFrequency="6" TickPlacement="BottomRight" Value="{Binding Gain,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Label}"/><TextBlock Grid.Row="2" Text="{Binding Label}" HorizontalAlignment="Center" Foreground="{DynamicResource Muted}" Margin="0,5,0,0" FontSize="11"/></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+    </Grid></TabItem>
+    <TabItem Header="Parametrische Filter">
+     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,8"><Button Content="＋ Filter" Click="AddFilter"/><Button Content="Auswahl entfernen" Click="RemoveFilter"/><TextBlock Text="Doppelklick zum Bearbeiten · Hinweise zum Typ beim Darüberfahren" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+      <DataGrid Grid.Row="1" x:Name="FilterGrid" PreparingCellForEdit="PrepareFilterEdit" TextBox.TextChanged="PendingFilterTextChanged" SelectionChanged="SelectCurveFilter" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CellEditEnding="FilterEdited" RowStyle="{StaticResource FilterRow}" CellStyle="{StaticResource FilterCell}" ColumnHeaderStyle="{StaticResource FilterHeader}">
+       <DataGrid.Columns>
+        <DataGridCheckBoxColumn Header="An" Binding="{Binding Enabled,UpdateSourceTrigger=PropertyChanged}" Width="45" ElementStyle="{StaticResource FilterCheckBoxDisplay}" EditingElementStyle="{StaticResource FilterCheckBox}"/>
+        <DataGridComboBoxColumn x:Name="TypeColumn" Header="Filtertyp" CellStyle="{StaticResource FilterTypeCell}" DisplayMemberPath="Label" SelectedValuePath="Code" SelectedValueBinding="{Binding Type,UpdateSourceTrigger=PropertyChanged}" Width="210" ElementStyle="{StaticResource FilterTypeDisplay}" EditingElementStyle="{StaticResource FilterTypeEditor}"/>
+        <DataGridTextColumn Header="Frequenz (Hz)" Binding="{Binding Frequency,UpdateSourceTrigger=LostFocus,Converter={StaticResource NumberConverter},ValidatesOnExceptions=True}" Width="*" ElementStyle="{StaticResource FilterNumberDisplay}" EditingElementStyle="{StaticResource FilterNumberEditor}"/>
+        <DataGridTextColumn Header="Gain (dB)" Binding="{Binding Gain,UpdateSourceTrigger=LostFocus,Converter={StaticResource NumberConverter},ValidatesOnExceptions=True}" Width="*" ElementStyle="{StaticResource FilterNumberDisplay}" EditingElementStyle="{StaticResource FilterNumberEditor}"/>
+        <DataGridTextColumn Header="Q" Binding="{Binding Q,UpdateSourceTrigger=LostFocus,Converter={StaticResource NumberConverter},ValidatesOnExceptions=True}" Width="*" ElementStyle="{StaticResource FilterNumberDisplay}" EditingElementStyle="{StaticResource FilterNumberEditor}"/>
+        <DataGridCheckBoxColumn Header="Q nutzen" Binding="{Binding UseQ,UpdateSourceTrigger=PropertyChanged}" Width="75" ElementStyle="{StaticResource FilterCheckBoxDisplay}" EditingElementStyle="{StaticResource FilterCheckBox}"/>
+       </DataGrid.Columns>
+      </DataGrid>
+     </Grid>
+    </TabItem>
+   </TabControl>
+   <Border Grid.Row="4" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,16,0,0">
+    <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=Status}" Value="Konfiguration angewendet"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+    <TextBlock x:Name="Status" Text="Vorschau · APO noch nicht verbunden" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="11"/>
+   </Border>
+  </Grid>
+ </Grid>
+</Window>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

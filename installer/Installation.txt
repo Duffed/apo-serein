@@ -1,0 +1,9 @@
+Serein für Windows x64
+
+Serein wird für den aktuellen Windows-Benutzer installiert. Die benötigte .NET-Laufzeit ist enthalten.
+
+Equalizer APO wird separat benötigt. Installiere es auf dem Zielrechner für das gewünschte Wiedergabegerät. Anschließend in Serein „APO verbinden / verwalten“ öffnen und die Verbindung einrichten. Die APO-Einrichtung kann Administratorrechte benötigen.
+
+Profile und Einstellungen liegen unter %LOCALAPPDATA%\Serein. Die Installation und Deinstallation verändern diesen Ordner nicht.
+
+Um vorhandene Profile auf einen anderen Rechner mitzunehmen: Serein auf beiden Rechnern beenden und den Ordner %LOCALAPPDATA%\Serein kopieren. Auf dem neuen Rechner Ausgabegerät und APO-Verbindung neu zuordnen.
