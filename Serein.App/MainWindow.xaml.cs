@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         var devices = (List<AudioDevice>)DeviceBox.ItemsSource;
         DeviceBox.SelectedItem = devices.FirstOrDefault(d => d.Id == lastDefault) ?? devices[0];
         selectedDevice = ((AudioDevice)DeviceBox.SelectedItem).Id;
+        UpdateApoDeviceWarning();
         ProfileList.ItemsSource = profiles;
         var selected = state.Devices.TryGetValue(selectedDevice, out var mapped) ? mapped : state.Selected;
         updating = false;
@@ -279,6 +280,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         { updating = true; DeviceBox.SelectedItem = ((IEnumerable<AudioDevice>)DeviceBox.ItemsSource).FirstOrDefault(item => item.Id == selectedDevice); updating = false; Status.Text = T("Gerätewechsel angehalten: ") + ex.Message; return; }
         selectedDevice = d.Id;
+        UpdateApoDeviceWarning();
         ProfileSearch.Text = ""; RefreshProfiles();
         var mapped = DeviceProfiles.Resolve(state, profiles, d.Id, d.Name, current, false);
         if (ReferenceEquals(current, mapped)) { SaveState(); _ = ApplyCurrent(); } else ProfileList.SelectedItem = mapped;
@@ -304,10 +306,27 @@ public partial class MainWindow : Window
             }
             if (!backend.Check().Connected) Status.Text = backend.Check().Message;
             else if (selectedDevice != "*" && !snapshot.List.Any(d => d.Id == selectedDevice)) Status.Text = T("Ausgabegerät getrennt · Ausgabe angehalten");
+            UpdateApoDeviceWarning();
         }
         catch (Exception ex) { Status.Text = T("Geräteprüfung: ") + ex.Message; }
         finally { polling = false; }
     }
+
+    void UpdateApoDeviceWarning()
+    {
+        var target = selectedDevice == "*" ? lastDefault : selectedDevice;
+        var device = ((IEnumerable<AudioDevice>)DeviceBox.ItemsSource)
+            .FirstOrDefault(d => string.Equals(d.Id, target, StringComparison.OrdinalIgnoreCase));
+        var warning = device?.ApoState switch
+        {
+            ApoDeviceState.NotInstalled => F("Equalizer APO ist für „{0}“ nicht eingerichtet.", device.Name),
+            ApoDeviceState.EnhancementsDisabled => F("Audioverbesserungen sind für „{0}“ deaktiviert.", device.Name),
+            _ => null
+        };
+        ApoDeviceWarningText.Text = warning ?? "";
+        ApoDeviceWarning.Visibility = warning is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     void OpenImportMenu(object sender, RoutedEventArgs e)
     {
         if (sender is System.Windows.Controls.Button { ContextMenu: { } menu } button)
@@ -394,14 +413,16 @@ public partial class MainWindow : Window
         panel.Children.Add(new System.Windows.Controls.TextBox { Text = summary + string.Join("\n\n", result.Issues), IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }); window.ShowDialog();
     }
     void OpenSettings(object sender, RoutedEventArgs e) => CreateSettingsWindow().ShowDialog();
+    void OpenApoSettings(object sender, RoutedEventArgs e) => CreateSettingsWindow(openApo: true).ShowDialog();
 
-    Window CreateSettingsWindow()
+    Window CreateSettingsWindow(bool openApo = false)
     {
         var window = Dialog(T("Einstellungen"), 650, 485, out var content);
         var tabs = new System.Windows.Controls.TabControl();
         var panel = new DockPanel { Margin = new(8, 16, 8, 8) };
         tabs.Items.Add(new TabItem { Header = T("Allgemein"), Content = GeneralSettings(window) });
         tabs.Items.Add(new TabItem { Header = "Equalizer APO", Content = panel });
+        tabs.SelectedIndex = openApo ? 1 : 0;
         content.Children.Add(tabs);
         window.Closing += (_, args) => args.Cancel = !tabs.IsEnabled;
         var buttons = new StackPanel { Margin = new(0,18,0,0) }; DockPanel.SetDock(buttons, Dock.Bottom);
@@ -621,6 +642,25 @@ public partial class MainWindow : Window
                             if (Status.Parent is not Border { Visibility: Visibility.Collapsed }) throw new InvalidDataException("Erfolgsstatus wird noch als Text angezeigt.");
                             Capture((FrameworkElement)Content, "Serein-Status-Symbol"); Status.Text = "Nicht angewendet: Testmeldung"; break;
                         case 7:
+                            var deviceList = DeviceBox.ItemsSource;
+                            var previousDevice = selectedDevice;
+                            updating = true;
+                            try
+                            {
+                                selectedDevice = "test-output";
+                                DeviceBox.ItemsSource = new[] { new AudioDevice(selectedDevice, "Test output", ApoDeviceState.NotInstalled) };
+                                UpdateApoDeviceWarning();
+                                if (ApoDeviceWarning.Visibility != Visibility.Visible || !ApoDeviceWarningText.Text.Contains("Test output"))
+                                    throw new InvalidDataException("The warning for an unconfigured output did not appear.");
+                            }
+                            finally
+                            {
+                                selectedDevice = previousDevice;
+                                DeviceBox.ItemsSource = deviceList;
+                                DeviceBox.SelectedItem = ((IEnumerable<AudioDevice>)deviceList).FirstOrDefault(device => device.Id == selectedDevice);
+                                UpdateApoDeviceWarning();
+                                updating = false;
+                            }
                             var settings = CreateSettingsWindow();
                             settings.Show();
                             try

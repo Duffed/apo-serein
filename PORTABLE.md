@@ -1,4 +1,4 @@
-# Serein 0.2 · Schnellstart
+# Serein 0.2.1 · Schnellstart
 
 1. Den gesamten ZIP-Inhalt in einen Ordner entpacken und **Serein.exe** starten. Die mitgelieferten DLLs müssen im Ordner bleiben. Eine zusätzliche .NET-Installation ist nicht erforderlich.
 2. Über **Importieren … → Datei importieren …** bestehende Peace-/APO-Profile auswählen oder unter **Kopfhörer-Presets** nach einem Modell suchen.
@@ -56,7 +56,7 @@ Kurve und Headroom sind eine **48-kHz-Vorschau**; die automatische Absenkung ist
 
 Die Einrichtung unterstützt eine leere APO-Hauptkonfiguration oder eine reine Peace-Einbindung. Weitere Befehle werden nicht automatisch entfernt. Originalbytes werden in `EqualizerAPO\config\Serein\setup.json` gesichert. Externe Änderungen an der Haupt- oder Serein-Konfiguration halten die Ausgabe an. Peace und Serein deshalb nicht parallel zum Steuern von APO verwenden.
 
-Portable Ausgabe und zusätzlicher Windows-Installer. Keine Codesignatur und kein Autoupdater. Lizenz: [GPL-2.0-or-later](Serein-LICENSE.txt). Die C#-/WPF-Quellen und das reproduzierbare Buildskript werden separat als **Serein-0.2-Quelltext.zip** geliefert. [Drittanbieterhinweise](Serein-THIRD-PARTY.md).
+Portable Ausgabe und zusätzlicher Windows-Installer. Keine Codesignatur und kein Autoupdater. Lizenz: [GPL-2.0-or-later](Serein-LICENSE.txt). Die C#-/WPF-Quellen und das reproduzierbare Buildskript werden separat als **Serein-0.2.1-Quelltext.zip** geliefert. [Drittanbieterhinweise](Serein-THIRD-PARTY.md).
 
 
 
