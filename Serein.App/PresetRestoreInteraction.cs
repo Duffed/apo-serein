@@ -26,7 +26,7 @@ public partial class MainWindow
         bool changed = current.PresetOriginal is EqSettings original ? !original.Same(EqSettings.Capture(current), true) : PresetSources.CanRecover(current);
         PresetResetButton.Visibility = changed ? Visibility.Visible : Visibility.Hidden;
         PresetResetButton.IsEnabled = !restoringPreset;
-        PresetResetButton.ToolTip = current.PresetOriginal != null ? "Ursprüngliche EQ-Werte laden. Mit Rückgängig lassen sich die Änderungen zurückholen." : "Original-Preset aus der Datei oder AutoEQ laden.";
+        PresetResetButton.ToolTip = current.PresetOriginal != null ? T("Ursprüngliche EQ-Werte laden. Mit Rückgängig lassen sich die Änderungen zurückholen.") : T("Original-Preset aus der Datei oder AutoEQ laden.");
     }
     async Task RememberPresetOriginal(Profile p)
     {
@@ -49,7 +49,7 @@ public partial class MainWindow
             profile.PresetOriginal = original;
             if (!ReferenceEquals(current, profile)) { SaveState(); return; }
             if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true))
-                throw new InvalidDataException("Bitte zuerst die ungültige Filtereingabe korrigieren.");
+                throw new InvalidDataException(T("Bitte zuerst die ungültige Filtereingabe korrigieren."));
             ApoFormat.Validate(profile); editTimer.Stop(); var history = HistoryFor(profile); history.Begin();
             updating = true;
             try

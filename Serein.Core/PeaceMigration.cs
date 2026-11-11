@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 namespace Serein.Core;
 
 public record PeaceImportResult(int Added, int Existing, IReadOnlyList<string> Issues);
@@ -19,7 +20,7 @@ public static class PeaceMigration
                 (p.Name == name && p.Source == "Import: " + Path.GetFileName(path)))) { existing++; continue; }
             try
             {
-                if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException("Datei zu groß.");
+                if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException(T("Datei zu groß."));
                 var profile = ApoFormat.Import(File.ReadAllText(path), name);
                 profile.Source = "Import: " + Path.GetFileName(path); profile.SourceFile = fullPath;
                 profile.Notes = (string.IsNullOrWhiteSpace(profile.Notes) ? "" : profile.Notes + "\n\n") + "Aus deiner lokalen Peace-Konfiguration übernommen. Die Originaldatei bleibt unverändert.";

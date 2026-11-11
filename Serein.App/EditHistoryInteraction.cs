@@ -31,7 +31,7 @@ public partial class MainWindow
         if (current == null) return;
         if (Curve.IsInteracting) { Curve.CancelEdit(); return; }
         if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true))
-        { Status.Text = "Bitte zuerst die ungültige Filtereingabe korrigieren."; return; }
+        { Status.Text = T("Bitte zuerst die ungültige Filtereingabe korrigieren."); return; }
         editTimer.Stop();
         try
         {

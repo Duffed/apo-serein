@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 using System.Numerics;
 
 namespace Serein.Core;
@@ -46,7 +47,7 @@ public static class Response
             "AP" => (1-alpha, -2*c, 1+alpha, 1+alpha, -2*c, 1-alpha),
             "LS" or "LSC" => (a*((a+1)-(a-1)*c+beta), 2*a*((a-1)-(a+1)*c), a*((a+1)-(a-1)*c-beta), (a+1)+(a-1)*c+beta, -2*((a-1)+(a+1)*c), (a+1)+(a-1)*c-beta),
             "HS" or "HSC" => (a*((a+1)+(a-1)*c+beta), -2*a*((a-1)+(a+1)*c), a*((a+1)+(a-1)*c-beta), (a+1)-(a-1)*c+beta, 2*((a-1)-(a+1)*c), (a+1)-(a-1)*c-beta),
-            _ => throw new InvalidDataException("Filtertyp unbekannt")
+            _ => throw new InvalidDataException(T("Filtertyp unbekannt"))
         };
         return hz =>
         {

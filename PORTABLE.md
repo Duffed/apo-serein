@@ -1,9 +1,9 @@
-# Serein 0.1 · Schnellstart
+# Serein 0.2 · Schnellstart
 
 1. Den gesamten ZIP-Inhalt in einen Ordner entpacken und **Serein.exe** starten. Die mitgelieferten DLLs müssen im Ordner bleiben. Eine zusätzliche .NET-Installation ist nicht erforderlich.
 2. Über **Importieren … → Datei importieren …** bestehende Peace-/APO-Profile auswählen oder unter **Kopfhörer-Presets** nach einem Modell suchen.
 3. Die Vorschau prüfen und **In Bibliothek speichern** wählen. Anschließend lässt sich das Profil links auswählen und bearbeiten.
-4. **Peace beenden.** In Serein **APO verbinden / verwalten → Sichern und mit Serein verbinden** wählen. Der einmalige Windows-Administrator-Dialog richtet die Dateieinbindung und Schreibrechte ein. Equalizer APO muss bereits für das gewünschte Wiedergabegerät installiert sein.
+4. **Peace beenden.** In Serein **Einstellungen → Equalizer APO → Sichern und mit Serein verbinden** wählen. Der einmalige Windows-Administrator-Dialog richtet die Dateieinbindung und Schreibrechte ein. Equalizer APO muss bereits für das gewünschte Wiedergabegerät installiert sein.
 5. Das Zielgerät oben auswählen und bei laufender Wiedergabe einen kleinen Preamp-Unterschied testen. Der Status bestätigt nur das Schreiben, nicht die Audiofunktion.
 
 ## Im Alltag
@@ -23,9 +23,9 @@
 
 - Die gemeinsame Tab-Leiste über dem Graphen legt fest, welche Stufe bearbeitet wird: parametrische Filter, importierter grafischer EQ oder persönliche grafische Anpassung. Punkte liegen auf der gesamten Kurve einschließlich Preamp. Parametrische Punkte horizontal für Frequenz und – bei Filtern mit Gain – vertikal verschieben. Feste grafische Bänder lassen sich vertikal verändern; importierte grafische Punkte bleiben beim Verschieben zwischen ihren Nachbarn. **Escape** setzt die laufende Bewegung zurück. Deaktivierte Filter und umgangener EQ sind im Graphen nicht bearbeitbar. Mit **Shift** beim Ziehen bleibt die aktuelle Frequenz fest. Über einem parametrischen Punkt ändert das **Mausrad** den Q-Wert; nach oben erhöht Q (bei einem Glockenfilter wird der Bereich schmaler). Q wird dabei ausdrücklich aktiviert; HP/LP werden bei Bedarf zu HPQ/LPQ. Automatische Preamp-Absenkung bleibt aktiv und beeinflusst weiterhin die Gesamtkurve.
 
-- Unter **Darstellung** links unten zwischen **Hell** und **Dunkel** wechseln. Die Auswahl wird gespeichert. Beide Ansichten verwenden Fluent-Bedienelemente; die Akzentfarbe kommt aus Windows.
+- Unter **Einstellungen → Allgemein** Sprache, Hell/Dunkel und Akzentfarbe wählen. Die Sprache folgt standardmäßig Windows und lässt sich auf Deutsch oder Englisch einstellen.
 
-- Nach der Verwendung von Peace: Peace beenden, **APO verbinden / verwalten** öffnen und **Neu verbinden und aktuelles Profil laden** wählen. Dabei wird die bisherige Konfiguration gesichert, die Einbindung erneuert und das ausgewählte Serein-Profil aktiviert. Frühere Sicherungen liegen unter `EqualizerAPO\config\Serein\backups`.
+- Nach der Verwendung von Peace: Peace beenden, **Einstellungen → Equalizer APO** öffnen und **Neu verbinden und aktuelles Profil laden** wählen. Dabei wird die bisherige Konfiguration gesichert, die Einbindung erneuert und das ausgewählte Serein-Profil aktiviert. Frühere Sicherungen liegen unter `EqualizerAPO\config\Serein\backups`.
 - Beim Überfahren einer Profilzeile erscheint rechts ein Papierkorb. Er entfernt genau dieses Profil nach Bestätigung. Ein anderes aktives Profil bleibt ausgewählt; beim Entfernen des aktiven Profils nennt die Bestätigung das anschließend geladene Profil. **Löschen rückgängig** bleibt verfügbar.
 
 - Profile am gepunkteten Griff links in der Zeile ziehen, um ihre Reihenfolge zu ändern. Eine Einfügelinie zeigt die Zielposition; am Listenrand wird automatisch gescrollt. Alternativ das ausgewählte Profil mit **Alt+↑ / Alt+↓** verschieben. Die Reihenfolge wird gespeichert und gilt auch für die Favoriten im Tray. Das Umsortieren aktiviert kein anderes Profil. Bei aktiver Suche wird relativ zum sichtbaren Zielprofil einsortiert.
@@ -56,7 +56,7 @@ Kurve und Headroom sind eine **48-kHz-Vorschau**; die automatische Absenkung ist
 
 Die Einrichtung unterstützt eine leere APO-Hauptkonfiguration oder eine reine Peace-Einbindung. Weitere Befehle werden nicht automatisch entfernt. Originalbytes werden in `EqualizerAPO\config\Serein\setup.json` gesichert. Externe Änderungen an der Haupt- oder Serein-Konfiguration halten die Ausgabe an. Peace und Serein deshalb nicht parallel zum Steuern von APO verwenden.
 
-Portable Ausgabe und zusätzlicher Windows-Installer. Keine Codesignatur und kein Autoupdater. Lizenz: [GPL-2.0-or-later](Serein-LICENSE.txt). Die C#-/WPF-Quellen und das reproduzierbare Buildskript werden separat als **Serein-0.1-Quelltext.zip** geliefert. [Drittanbieterhinweise](Serein-THIRD-PARTY.md).
+Portable Ausgabe und zusätzlicher Windows-Installer. Keine Codesignatur und kein Autoupdater. Lizenz: [GPL-2.0-or-later](Serein-LICENSE.txt). Die C#-/WPF-Quellen und das reproduzierbare Buildskript werden separat als **Serein-0.2-Quelltext.zip** geliefert. [Drittanbieterhinweise](Serein-THIRD-PARTY.md).
 
 
 

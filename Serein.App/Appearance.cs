@@ -7,7 +7,7 @@ public static class Appearance
 {
     public static bool IsLight { get; private set; }
 
-    public static void Apply(string mode)
+    public static void Apply(string mode, string accent = "System")
     {
         IsLight = mode == "Light";
         var resources = System.Windows.Application.Current.Resources;
@@ -24,6 +24,13 @@ public static class Appearance
         Set("EqActiveFill", "#267348", "#267348"); Set("EqActiveHover", "#205F3B", "#205F3B");
         Set("StatusSuccess", "#267348", "#77DBA4");
         resources["Accent"] = new SolidColorBrush(IsLight ? SystemColors.AccentColorDark1 : SystemColors.AccentColorLight2);
+        switch (accent)
+        {
+            case "Blue": Set("Accent", "#005FB8", "#83BBFF"); break;
+            case "Green": Set("Accent", "#176841", "#7AD7A3"); break;
+            case "Orange": Set("Accent", "#9D381C", "#FFA68D"); break;
+            case "Purple": Set("Accent", "#6843A5", "#C9ACFF"); break;
+        }
         foreach (Window window in System.Windows.Application.Current.Windows)
         {
             DarkChrome.Update(window);

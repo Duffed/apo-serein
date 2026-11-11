@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         if (smoke) dataDirectory = Path.Combine(AppContext.BaseDirectory, "smoke-data");
         statePath = Path.Combine(dataDirectory, "profiles.json");
         state = ProfileStore.Load(statePath);
+        Apply(state.Language);
         if (state.Profiles.Count == 0) state.Profiles.Add(new Profile { Name = "Neutral", Favorite = true });
         PeaceImportResult? migration = null;
         if (!smoke && state.PeaceMigrationVersion < 1 && Directory.Exists(state.ConfigDirectory))
@@ -50,15 +51,15 @@ public partial class MainWindow : Window
         }
         profiles = new(state.Profiles);
         backend = new(state.ConfigDirectory);
-        Appearance.Apply(state.Appearance);
+        Appearance.Apply(state.Appearance, state.AccentColor);
         InitializeComponent();
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(Culture.IetfLanguageTag);
         if (interactiveTest) Title = "Serein · Equalizer · Test";
         DarkChrome.Attach(this);
         if (migration != null)
-        { MigrationNotice.Text = $"{migration.Added} Peace-Profile übernommen" + (migration.Issues.Count > 0 ? $" · {migration.Issues.Count} Hinweise (siehe Peace-Übernahme)" : ""); MigrationNotice.Visibility = Visibility.Visible; }
+        { MigrationNotice.Text = F("{0} Peace-Profile übernommen", migration.Added) + (migration.Issues.Count > 0 ? F(" · {0} Hinweise (siehe Peace-Übernahme)", migration.Issues.Count) : ""); MigrationNotice.Visibility = Visibility.Visible; }
         TypeColumn.ItemsSource = FilterTypes.Choices;
         updating = true;
-        ThemeBox.SelectedIndex = Appearance.IsLight ? 0 : 1;
         CompactProfileView = state.CompactProfiles; CompactProfilesBox.IsChecked = state.CompactProfiles;
         var sidebarWidth = double.IsFinite(state.SidebarWidth) ? Math.Clamp(state.SidebarWidth, 210, 480) : 245;
         SidebarColumn.Width = new GridLength(sidebarWidth); Width = Math.Max(1220, sidebarWidth + 800); MinWidth = Math.Max(1000, sidebarWidth + 800);
@@ -81,7 +82,7 @@ public partial class MainWindow : Window
         ContentRendered += async (_, _) =>
         {
             ProfileList.ScrollIntoView(current);
-            if (smoke) { if (interactiveTest) { Status.Text = "Testmodus · keine Audioänderung oder Speicherung von Benutzerprofilen"; return; } File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "startup-ms.txt"), (DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture)); CaptureSmoke(); return; }
+            if (smoke) { if (interactiveTest) { Status.Text = T("Testmodus · keine Audioänderung oder Speicherung von Benutzerprofilen"); return; } File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "startup-ms.txt"), (DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture)); CaptureSmoke(); return; }
             Status.Text = backend.Check().Message;
             if (backend.Check().Connected) await ApplyCurrent();
         };
@@ -101,7 +102,7 @@ public partial class MainWindow : Window
         if (current != null && profiles.Contains(current))
         {
             if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true))
-            { updating = true; ProfileList.SelectedItem = current; updating = false; Status.Text = "Bitte zuerst die ungültige Filtereingabe korrigieren."; return; }
+            { updating = true; ProfileList.SelectedItem = current; updating = false; Status.Text = T("Bitte zuerst die ungültige Filtereingabe korrigieren."); return; }
             try { ApoFormat.Validate(current); }
             catch (Exception ex) { updating = true; ProfileList.SelectedItem = current; updating = false; Error(ex); return; }
         }
@@ -128,38 +129,41 @@ public partial class MainWindow : Window
     {
         updating = true;
         ProfileTitle.Text = current.Name; FavoriteBox.IsChecked = current.Favorite;
+        UpdateFavoriteTooltip();
         PreampSlider.Minimum = Math.Min(-40, current.Preamp); PreampSlider.Maximum = Math.Max(20, current.Preamp);
-        PreampSlider.Value = current.Preamp; PreampValue.Text = current.Preamp.ToString("0.###", CultureInfo.GetCultureInfo("de-DE"));
+        PreampSlider.Value = current.Preamp; PreampValue.Text = current.Preamp.ToString("0.###", Culture);
         AutoHeadroomBox.IsChecked = current.AutoHeadroom;
-        SourceLabel.Text = current.SourceSummary + " · für Details klicken"; SourceLabel.ToolTip = current.Source;
+        SourceLabel.Text = current.SourceSummary + T(" · für Details klicken"); SourceLabel.ToolTip = current.Source;
         FilterGrid.ItemsSource = current.Filters; BandList.ItemsSource = current.Adjustment;
         Power.IsChecked = !state.Bypass;
-        Power.Content = state.Bypass ? "EQ aus" : "EQ ein";
-        Power.ToolTip = state.Bypass ? "EQ umgangen. Klicken zum Einschalten." : "EQ eingeschaltet. Der Status unten zeigt, ob die Konfiguration geschrieben wurde. Klicken zum Umgehen.";
+        Power.Content = state.Bypass ? T("EQ aus") : T("EQ ein");
+        Power.ToolTip = state.Bypass ? T("EQ umgangen. Klicken zum Einschalten.") : T("EQ eingeschaltet. Der Status unten zeigt, ob die Konfiguration geschrieben wurde. Klicken zum Umgehen.");
         UpdateCurveLayers(); updating = false; RefreshCurve(); UpdateHistoryButtons(); UpdateSaveButton();
     }
     void RefreshCurve()
     {
         ApoFormat.Validate(current); Curve.Profile = current; Curve.Bypass = state.Bypass; Curve.InvalidateVisual();
         var peak = Response.Peak(current) + Response.EffectivePreamp(current);
-        HeadroomLabel.Text = state.Bypass ? "EQ umgangen" : peak > .0001 ? $"Spitze +{peak:0.0} dB · Übersteuerung möglich" : $"Headroom ca. {Math.Max(0, -peak):0.0} dB";
+        HeadroomLabel.Text = state.Bypass ? T("EQ umgangen") : peak > .0001
+            ? F("Spitze +{0:0.0} dB · Übersteuerung möglich", peak)
+            : F("Headroom ca. {0:0.0} dB", Math.Max(0, -peak));
     }
     async Task CommitChanges()
     {
         if (current == null) return;
         try
         {
-            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) { Status.Text = "Ungültige Filtereingabe · Änderung nicht angewendet"; return; }
+            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) { Status.Text = T("Ungültige Filtereingabe · Änderung nicht angewendet"); return; }
             ApoFormat.Validate(current); RefreshCurve(); HistoryFor(current).Record(); UpdateHistoryButtons(); if (SaveState()) await ApplyCurrent();
         }
-        catch (Exception ex) { Status.Text = "Änderung nicht angewendet: " + ex.Message; }
+        catch (Exception ex) { Status.Text = T("Änderung nicht angewendet: ") + ex.Message; }
     }
     bool SaveState()
     {
         if (smoke) { MarkProfilesSaved(); return true; }
         state.Profiles = profiles.ToList();
         try { foreach (var p in profiles) ApoFormat.Validate(p); ProfileStore.Save(statePath, state); MarkProfilesSaved(); return true; }
-        catch (Exception ex) { Status.Text = "Speichern fehlgeschlagen: " + ex.Message; UpdateSaveButton(); return false; }
+        catch (Exception ex) { Status.Text = T("Speichern fehlgeschlagen: ") + ex.Message; UpdateSaveButton(); return false; }
     }
     async Task ApplyCurrent()
     {
@@ -170,39 +174,41 @@ public partial class MainWindow : Window
             ApoFormat.Validate(current);
             var check = backend.Check(); if (!check.Connected) { Status.Text = check.Message; return; }
             var target = selectedDevice;
-            if (target != "*" && !Devices.List().Any(d => d.Id == target)) { Status.Text = "Ausgabegerät nicht verfügbar · Ausgabe angehalten"; return; }
+            if (target != "*" && !Devices.List().Any(d => d.Id == target)) { Status.Text = T("Ausgabegerät nicht verfügbar · Ausgabe angehalten"); return; }
             var result = await backend.ApplyAsync(current, target == "*" ? null : target, state.Bypass);
             if (request == selectionRevision && result.Written) Status.Text = result.Message;
         }
-        catch (Exception ex) { if (request == selectionRevision) Status.Text = "Nicht angewendet: " + ex.Message; }
+        catch (Exception ex) { if (request == selectionRevision) Status.Text = T("Nicht angewendet: ") + ex.Message; }
     }
     void PreampChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (updating || current == null) return; current.Preamp = e.NewValue; PreampValue.Text = e.NewValue.ToString("0.0", CultureInfo.GetCultureInfo("de-DE"));
+        if (updating || current == null) return; current.Preamp = e.NewValue; PreampValue.Text = e.NewValue.ToString("0.0", Culture);
     }
     void CommitPreamp(object sender, RoutedEventArgs e)
     {
         if (updating || current == null) return;
         if (!double.TryParse(PreampValue.Text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value) || Math.Abs(value) > 100)
-        { Status.Text = "Preamp ungültig (−100 bis +100 dB)."; PreampValue.Text = current.Preamp.ToString(CultureInfo.GetCultureInfo("de-DE")); return; }
+        { Status.Text = T("Preamp ungültig (−100 bis +100 dB)."); PreampValue.Text = current.Preamp.ToString(Culture); return; }
         updating = true; PreampSlider.Minimum = Math.Min(-40, value); PreampSlider.Maximum = Math.Max(20, value); PreampSlider.Value = value; updating = false; current.Preamp = value;
     }
     void PreampKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { CommitPreamp(sender, e); Keyboard.ClearFocus(); } }
     void AutoHeadroomChanged(object sender, RoutedEventArgs e) { if (updating || current == null) return; current.AutoHeadroom = AutoHeadroomBox.IsChecked == true; ScheduleChange(); }
-    void FavoriteChanged(object sender, RoutedEventArgs e) { if (updating || current == null) return; current.Favorite = FavoriteBox.IsChecked == true; RefreshProfiles(); SaveState(); BuildTray(); }
+    void FavoriteChanged(object sender, RoutedEventArgs e) { if (updating || current == null) return; current.Favorite = FavoriteBox.IsChecked == true; UpdateFavoriteTooltip(); RefreshProfiles(); SaveState(); BuildTray(); }
+    void UpdateFavoriteTooltip() => FavoriteBox.ToolTip = current.Favorite ? T("Aus Favoriten entfernen") : T("Zu Favoriten hinzufügen");
     async void ToggleBypass(object sender, RoutedEventArgs e) { state.Bypass = !state.Bypass; Populate(); SaveState(); BuildTray(); await ApplyCurrent(); }
     async void SaveProfile(object sender, RoutedEventArgs e) { if (!SaveButton.IsEnabled) return; CommitPreamp(sender, e); editTimer.Stop(); await CommitChanges(); }
-    void NewProfile(object sender, RoutedEventArgs e) { var name = Prompt("Neues Profil", "Profilname", "Neues Profil"); if (name != null) AddProfile(new() { Name = name }); }
+    void NewProfile(object sender, RoutedEventArgs e) { var name = Prompt(T("Neues Profil"), T("Profilname"), T("Neues Profil")); if (name != null) AddProfile(new() { Name = name }); }
     void CompactProfilesChanged(object sender, RoutedEventArgs e)
     {
         if (updating || current == null) return;
         CompactProfileView = CompactProfilesBox.IsChecked == true; state.CompactProfiles = CompactProfileView; SaveState();
     }
-    void ChangeAppearance(object sender, SelectionChangedEventArgs e)
+    void ChangeAppearance(string mode, string accent)
     {
-        if (updating || current == null || ThemeBox.SelectedIndex < 0) return;
-        state.Appearance = ThemeBox.SelectedIndex == 0 ? "Light" : "Dark";
-        Appearance.Apply(state.Appearance); SaveState();
+        state.Appearance = mode;
+        state.AccentColor = accent;
+        Appearance.Apply(mode, accent);
+        SaveState();
     }
     void SidebarResized(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
     { state.SidebarWidth = SidebarColumn.ActualWidth; MinWidth = Math.Max(1000, state.SidebarWidth + 800); SaveState(); }
@@ -218,8 +224,10 @@ public partial class MainWindow : Window
         if (!profiles.Contains(profile)) return;
         bool active = ReferenceEquals(current, profile);
         var replacement = profiles.FirstOrDefault(p => p != profile && ProfileLibrary.IsNeutral(p)) ?? profiles.FirstOrDefault(p => p != profile);
-        var message = $"„{profile.Name}“ aus der Bibliothek löschen?\n" + (active ? $"Danach wird „{replacement?.Name ?? "Neutral"}“ geladen.\n" : "") + "Die ursprüngliche Peace-Datei bleibt erhalten.";
-        if (MessageBox.Show(this, message, "Profil löschen", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        var message = F("„{0}“ aus der Bibliothek löschen?\n", profile.Name)
+            + (active ? F("Danach wird „{0}“ geladen.\n", replacement?.Name ?? "Neutral") : "")
+            + T("Die ursprüngliche Peace-Datei bleibt erhalten.");
+        if (MessageBox.Show(this, message, T("Profil löschen"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
         if (active) { FilterGrid.CancelEdit(DataGridEditingUnit.Cell); FilterGrid.CancelEdit(DataGridEditingUnit.Row); editTimer.Stop(); }
         state.Profiles = profiles.ToList(); ProfileLibrary.Remove(state, profile.Id);
         updating = true; ProfileList.ItemsSource = null; profiles.Clear(); foreach (var p in state.Profiles) profiles.Add(p); updating = false;
@@ -231,15 +239,15 @@ public partial class MainWindow : Window
         state.Profiles = profiles.ToList(); var restored = ProfileLibrary.RestoreLast(state); if (restored == null) return;
         if (!profiles.Any(p => p.Id == restored.Id)) profiles.Add(restored);
         RefreshProfiles(); SaveState(); BuildTray(); UndoDeleteButton.Visibility = state.TrashedProfiles.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        Status.Text = $"„{restored.Name}“ wieder in der Bibliothek";
+        Status.Text = F("„{0}“ wieder in der Bibliothek", restored.Name);
     }
-    void DuplicateProfile(object sender, RoutedEventArgs e) { var p = current.Clone(); p.Name += " · Kopie"; AddProfile(p); }
-    void RenameProfile(object sender, RoutedEventArgs e) { var name = Prompt("Profil umbenennen", "Profilname", current.Name); if (name == null) return; current.Name = name; ProfileTitle.Text = name; RefreshProfiles(); SaveState(); BuildTray(); }
+    void DuplicateProfile(object sender, RoutedEventArgs e) { var p = current.Clone(); p.Name += T(" · Kopie"); AddProfile(p); }
+    void RenameProfile(object sender, RoutedEventArgs e) { var name = Prompt(T("Profil umbenennen"), T("Profilname"), current.Name); if (name == null) return; current.Name = name; ProfileTitle.Text = name; RefreshProfiles(); SaveState(); BuildTray(); }
     bool AddProfile(Profile p, bool activate = true)
     {
         if (activate && current != null)
         {
-            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) { Error(new InvalidDataException("Bitte zuerst die ungültige Filtereingabe korrigieren.")); return false; }
+            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) { Error(new InvalidDataException(T("Bitte zuerst die ungültige Filtereingabe korrigieren."))); return false; }
             try { ApoFormat.Validate(current); } catch (Exception ex) { Error(ex); return false; }
         }
         if (p.SourceFile != null) state.SuppressedPeaceFiles.RemoveAll(path => string.Equals(path, p.SourceFile, StringComparison.OrdinalIgnoreCase));
@@ -250,7 +258,7 @@ public partial class MainWindow : Window
     }
     void SetBands(int count)
     {
-        if (current.Adjustment.Any(p => p.Gain != 0) && MessageBox.Show("Die persönliche grafische Anpassung wird zurückgesetzt. Importierte Korrekturen bleiben erhalten.", "Bandanzahl ändern", MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
+        if (current.Adjustment.Any(p => p.Gain != 0) && MessageBox.Show(T("Die persönliche grafische Anpassung wird zurückgesetzt. Importierte Korrekturen bleiben erhalten."), T("Bandanzahl ändern"), MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         updating = true; current.Adjustment.Clear(); foreach (var f in Response.BandFrequencies(count)) current.Adjustment.Add(new() { Frequency = f }); updating = false;
         AttachProfile(); BandList.ItemsSource = current.Adjustment; ScheduleChange();
     }
@@ -265,11 +273,11 @@ public partial class MainWindow : Window
         if (updating || DeviceBox.SelectedItem is not AudioDevice d) return;
         try
         {
-            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) throw new InvalidDataException("Ungültige Filtereingabe.");
+            if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true)) throw new InvalidDataException(T("Ungültige Filtereingabe."));
             ApoFormat.Validate(current);
         }
         catch (Exception ex)
-        { updating = true; DeviceBox.SelectedItem = ((IEnumerable<AudioDevice>)DeviceBox.ItemsSource).FirstOrDefault(item => item.Id == selectedDevice); updating = false; Status.Text = "Gerätewechsel angehalten: " + ex.Message; return; }
+        { updating = true; DeviceBox.SelectedItem = ((IEnumerable<AudioDevice>)DeviceBox.ItemsSource).FirstOrDefault(item => item.Id == selectedDevice); updating = false; Status.Text = T("Gerätewechsel angehalten: ") + ex.Message; return; }
         selectedDevice = d.Id;
         ProfileSearch.Text = ""; RefreshProfiles();
         var mapped = DeviceProfiles.Resolve(state, profiles, d.Id, d.Name, current, false);
@@ -295,9 +303,9 @@ public partial class MainWindow : Window
                 }
             }
             if (!backend.Check().Connected) Status.Text = backend.Check().Message;
-            else if (selectedDevice != "*" && !snapshot.List.Any(d => d.Id == selectedDevice)) Status.Text = "Ausgabegerät getrennt · Ausgabe angehalten";
+            else if (selectedDevice != "*" && !snapshot.List.Any(d => d.Id == selectedDevice)) Status.Text = T("Ausgabegerät getrennt · Ausgabe angehalten");
         }
-        catch (Exception ex) { Status.Text = "Geräteprüfung: " + ex.Message; }
+        catch (Exception ex) { Status.Text = T("Geräteprüfung: ") + ex.Message; }
         finally { polling = false; }
     }
     void OpenImportMenu(object sender, RoutedEventArgs e)
@@ -307,54 +315,54 @@ public partial class MainWindow : Window
     }
     void ImportFile(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "EQ-Profile (*.peace;*.txt)|*.peace;*.txt|Alle Dateien|*.*", Multiselect = true, InitialDirectory = state.ConfigDirectory };
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = T("EQ-Profile (*.peace;*.txt)|*.peace;*.txt|Alle Dateien|*.*"), Multiselect = true, InitialDirectory = state.ConfigDirectory };
         if (dialog.ShowDialog(this) != true) return;
         foreach (var file in dialog.FileNames) try
-        { if (new FileInfo(file).Length > 2_000_000) throw new InvalidDataException("Datei zu groß."); var p = ApoFormat.Import(File.ReadAllText(file), Path.GetFileNameWithoutExtension(file)); p.Source = "Import: " + Path.GetFileName(file); p.SourceFile = Path.GetFullPath(file); Preview(p); }
+        { if (new FileInfo(file).Length > 2_000_000) throw new InvalidDataException(T("Datei zu groß.")); var p = ApoFormat.Import(File.ReadAllText(file), Path.GetFileNameWithoutExtension(file)); p.Source = "Import: " + Path.GetFileName(file); p.SourceFile = Path.GetFullPath(file); Preview(p); }
         catch (Exception ex) { Error(new Exception(Path.GetFileName(file) + "\n" + ex.Message)); }
     }
     void ImportText(object sender, RoutedEventArgs e)
     {
         var box = new System.Windows.Controls.TextBox { AcceptsReturn = true, AcceptsTab = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontFamily = new System.Windows.Media.FontFamily("Consolas"), Text = "Preamp: 0 dB\nFilter 1: ON PK Fc 1000 Hz Gain 0 dB Q 1" };
-        var window = Dialog("APO-Text importieren", 720, 500, out var panel);
-        var button = new System.Windows.Controls.Button { Content = "Import prüfen", Margin = new(0,12,0,0) }; DockPanel.SetDock(button, Dock.Bottom); panel.Children.Add(button); panel.Children.Add(box);
-        button.Click += (_, _) => { try { var p = ApoFormat.Import(box.Text, "Textimport"); p.Source = "Eingefügter APO-Text"; window.Close(); Preview(p); } catch (Exception ex) { Error(ex); } }; window.ShowDialog();
+        var window = Dialog(T("APO-Text importieren"), 720, 500, out var panel);
+        var button = new System.Windows.Controls.Button { Content = T("Import prüfen"), Margin = new(0,12,0,0) }; DockPanel.SetDock(button, Dock.Bottom); panel.Children.Add(button); panel.Children.Add(box);
+        button.Click += (_, _) => { try { var p = ApoFormat.Import(box.Text, T("Textimport")); p.Source = "Eingefügter APO-Text"; window.Close(); Preview(p); } catch (Exception ex) { Error(ex); } }; window.ShowDialog();
     }
     bool Preview(Profile p)
     {
         bool loaded = false;
-        var window = Dialog("Preset-Vorschau · " + p.Name, 780, 690, out var panel);
+        var window = Dialog(T("Preset-Vorschau · ") + p.Name, 780, 690, out var panel);
         var buttons = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new(0,15,0,0) }; DockPanel.SetDock(buttons, Dock.Bottom);
-        var save = new System.Windows.Controls.Button { Content = "In Bibliothek speichern" }; var load = new System.Windows.Controls.Button { Content = "Speichern und laden" }; var cancel = new System.Windows.Controls.Button { Content = "Abbrechen" };
+        var save = new System.Windows.Controls.Button { Content = T("In Bibliothek speichern") }; var load = new System.Windows.Controls.Button { Content = T("Speichern und laden") }; var cancel = new System.Windows.Controls.Button { Content = T("Abbrechen") };
         buttons.Children.Add(save); buttons.Children.Add(load); buttons.Children.Add(cancel); panel.Children.Add(buttons);
         var details = new StackPanel(); details.Children.Add(new TextBlock { Text = p.Name, FontSize = 24, Margin = new(0,0,0,10) });
-        details.Children.Add(new TextBlock { Text = $"{p.Filters.Count} Filter · {p.Graphic.Count + p.Adjustment.Count} grafische Punkte · Preamp {p.Preamp:0.##} dB", Margin = new(0,0,0,10) });
+        details.Children.Add(new TextBlock { Text = F("{0} Filter · {1} grafische Punkte · Preamp {2:0.##} dB", p.Filters.Count, p.Graphic.Count + p.Adjustment.Count, p.Preamp), Margin = new(0,0,0,10) });
         details.Children.Add(new TextBlock { Text = ProfileInfo(p), TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         AddSourceButton(details, p.Source);
         details.Children.Add(new CurveView { Profile = p, Height = 220, Margin = new(0,16,0,0) });
-        details.Children.Add(new TextBlock { Text = "Nur speichern lässt den aktuellen EQ unverändert. Speichern und laden aktiviert dieses Profil und öffnet es in der Hauptansicht.", TextWrapping = TextWrapping.Wrap, FontSize = 12 }); panel.Children.Add(new ScrollViewer { Content = details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        save.Click += (_, _) => { AddProfile(p, false); window.Close(); Status.Text = "Preset gespeichert · zum Aktivieren links auswählen"; };
+        details.Children.Add(new TextBlock { Text = T("Nur speichern lässt den aktuellen EQ unverändert. Speichern und laden aktiviert dieses Profil und öffnet es in der Hauptansicht."), TextWrapping = TextWrapping.Wrap, FontSize = 12 }); panel.Children.Add(new ScrollViewer { Content = details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        save.Click += (_, _) => { AddProfile(p, false); window.Close(); Status.Text = T("Preset gespeichert · zum Aktivieren links auswählen"); };
         load.Click += (_, _) => { if (AddProfile(p, true)) { loaded = true; window.Close(); } }; cancel.Click += (_, _) => window.Close(); window.ShowDialog();
         return loaded;
     }
     void OpenCatalog(object sender, RoutedEventArgs e)
     { var window = new CatalogWindow(dataDirectory, Preview) { Owner = this }; window.ShowDialog(); if (window.ProfileLoaded) ShowFromTray(); }
     static string ProfileInfo(Profile p) => p.SourceSummary +
-        (string.IsNullOrWhiteSpace(p.MeasurementSource) ? "" : "\nMessquelle: " + p.MeasurementSource) +
-        (string.IsNullOrWhiteSpace(p.Category) ? "" : "\nKategorie / Messaufbau: " + p.Category) +
-        "\nZielkurve: " + (string.IsNullOrWhiteSpace(p.TargetCurve) ? "In der Quelle nicht angegeben" : p.TargetCurve) +
-        (string.IsNullOrWhiteSpace(p.SourceFile) ? "" : "\nOriginaldatei: " + p.SourceFile) +
-        (string.IsNullOrWhiteSpace(p.Notes) ? "" : "\n\nHinweise der Quelle:\n" + p.Notes);
+        (string.IsNullOrWhiteSpace(p.MeasurementSource) ? "" : T("\nMessquelle: ") + p.MeasurementSource) +
+        (string.IsNullOrWhiteSpace(p.Category) ? "" : T("\nKategorie / Messaufbau: ") + p.Category) +
+        T("\nZielkurve: ") + (string.IsNullOrWhiteSpace(p.TargetCurve) ? T("In der Quelle nicht angegeben") : p.TargetCurve) +
+        (string.IsNullOrWhiteSpace(p.SourceFile) ? "" : T("\nOriginaldatei: ") + p.SourceFile) +
+        (string.IsNullOrWhiteSpace(p.Notes) ? "" : T("\n\nHinweise der Quelle:\n") + p.Notes);
     static void AddSourceButton(StackPanel panel, string? source)
     {
         if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) || uri.Scheme != "https") return;
-        var button = new System.Windows.Controls.Button { Content = "Originalquelle öffnen ↗", HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new(0,12,0,0) };
-        button.Click += (_, _) => { try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); } catch (Exception ex) { MessageBox.Show(ex.Message, "Quelle öffnen"); } }; panel.Children.Add(button);
+        var button = new System.Windows.Controls.Button { Content = T("Originalquelle öffnen ↗"), HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new(0,12,0,0) };
+        button.Click += (_, _) => { try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); } catch (Exception ex) { MessageBox.Show(ex.Message, T("Quelle öffnen")); } }; panel.Children.Add(button);
     }
     void ShowProfileInfo(object sender, MouseButtonEventArgs e)
     {
         var profile = current;
-        var window = Dialog("Profilinformationen · " + profile.Name, 700, 570, out var panel);
+        var window = Dialog(T("Profilinformationen · ") + profile.Name, 700, 570, out var panel);
         var stack = new StackPanel(); stack.Children.Add(new TextBlock { Text = profile.Name, FontSize = 24, Margin = new(0,0,0,15) });
         var info = new TextBlock { Text = ProfileInfo(profile), TextWrapping = TextWrapping.Wrap }; stack.Children.Add(info); AddSourceButton(stack, profile.Source);
         const string prefix = "https://github.com/jaakkopasanen/AutoEq/tree/master/results/";
@@ -362,7 +370,7 @@ public partial class MainWindow : Window
         {
             window.Loaded += async (_, _) =>
             {
-                info.Text += "\n\nZusatzinfos werden geladen …";
+                info.Text += T("\n\nZusatzinfos werden geladen …");
                 try
                 {
                     var path = profile.Source[prefix.Length..]; var entry = new CatalogEntry(profile.Name, path, Uri.UnescapeDataString(path.Split('/')[0]));
@@ -370,7 +378,7 @@ public partial class MainWindow : Window
                     profile.MeasurementSource = value.Measurement; profile.Category = value.Category; profile.TargetCurve = value.TargetCurve; profile.Notes = value.Notes;
                     info.Text = ProfileInfo(profile); SaveState();
                 }
-                catch (Exception) { info.Text = ProfileInfo(profile) + "\n\nZusatzinfos derzeit nicht verfügbar."; }
+                catch (Exception) { info.Text = ProfileInfo(profile) + T("\n\nZusatzinfos derzeit nicht verfügbar."); }
             };
         }
         panel.Children.Add(new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }); window.ShowDialog();
@@ -380,77 +388,92 @@ public partial class MainWindow : Window
         state.Profiles = profiles.ToList(); var result = PeaceMigration.Import(state, state.ConfigDirectory);
         foreach (var profile in state.Profiles.Where(p => !profiles.Contains(p))) profiles.Add(profile);
         state.PeaceMigrationVersion = 1; state.PeaceImportIssues = result.Issues.ToList(); RefreshProfiles(); SaveState(); BuildTray();
-        MigrationNotice.Text = $"{result.Added} neue Peace-Profile · {result.Issues.Count} Hinweise"; MigrationNotice.Visibility = Visibility.Visible;
-        var window = Dialog("Peace-Profile · Übernahmebericht", 780, 580, out var panel);
-        panel.Children.Add(new System.Windows.Controls.TextBox { Text = $"{result.Added} neu übernommen, {result.Existing} bereits vorhanden oder bewusst entfernt, {result.Issues.Count} nicht unterstützt.\nDas aktive Profil bleibt ausgewählt. Originaldateien wurden nicht verändert.\n\n" + string.Join("\n\n", result.Issues), IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }); window.ShowDialog();
+        MigrationNotice.Text = F("{0} neue Peace-Profile · {1} Hinweise", result.Added, result.Issues.Count); MigrationNotice.Visibility = Visibility.Visible;
+        var window = Dialog(T("Peace-Profile · Übernahmebericht"), 780, 580, out var panel);
+        var summary = F("{0} neu übernommen, {1} bereits vorhanden oder bewusst entfernt, {2} nicht unterstützt.\nDas aktive Profil bleibt ausgewählt. Originaldateien wurden nicht verändert.\n\n", result.Added, result.Existing, result.Issues.Count);
+        panel.Children.Add(new System.Windows.Controls.TextBox { Text = summary + string.Join("\n\n", result.Issues), IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }); window.ShowDialog();
     }
-    async void ManageApo(object sender, RoutedEventArgs e)
+    void OpenSettings(object sender, RoutedEventArgs e) => CreateSettingsWindow().ShowDialog();
+
+    Window CreateSettingsWindow()
     {
-        var window = Dialog("Equalizer APO · Einrichtung", 650, 480, out var panel);
+        var window = Dialog(T("Einstellungen"), 650, 485, out var content);
+        var tabs = new System.Windows.Controls.TabControl();
+        var panel = new DockPanel { Margin = new(8, 16, 8, 8) };
+        tabs.Items.Add(new TabItem { Header = T("Allgemein"), Content = GeneralSettings(window) });
+        tabs.Items.Add(new TabItem { Header = "Equalizer APO", Content = panel });
+        content.Children.Add(tabs);
+        window.Closing += (_, args) => args.Cancel = !tabs.IsEnabled;
         var buttons = new StackPanel { Margin = new(0,18,0,0) }; DockPanel.SetDock(buttons, Dock.Bottom);
         bool existingSetup = File.Exists(Path.Combine(state.ConfigDirectory,"Serein","setup.json"));
-        var connect = new System.Windows.Controls.Button { Content = existingSetup ? "Neu verbinden und aktuelles Profil laden" : "Sichern und mit Serein verbinden", Margin = new(0,0,0,8) };
-        var restore = new System.Windows.Controls.Button { Content = "Gesicherte Originalkonfiguration wiederherstellen" };
-        var devices = new System.Windows.Controls.Button { Content = "APO-Geräte einrichten …", Margin = new(0,0,0,8) };
+        var connect = new System.Windows.Controls.Button { Content = existingSetup ? T("Neu verbinden und aktuelles Profil laden") : T("Sichern und mit Serein verbinden"), Margin = new(0,0,0,8) };
+        var restore = new System.Windows.Controls.Button { Content = T("Gesicherte Originalkonfiguration wiederherstellen") };
+        var devices = new System.Windows.Controls.Button { Content = T("APO-Geräte einrichten …"), Margin = new(0,0,0,8) };
         buttons.Children.Add(devices); buttons.Children.Add(connect); buttons.Children.Add(restore); panel.Children.Add(buttons);
-        var info = new StackPanel(); info.Children.Add(new TextBlock { Text = "Nach Peace wieder mit Serein verbinden.", FontSize = 20, Margin = new(0,0,0,14) });
-        info.Children.Add(new TextBlock { Text = "Beende Peace und klicke auf Neu verbinden. Serein sichert die bisherige Konfiguration, übernimmt wieder die Steuerung und lädt das ausgewählte Profil. Frühere Sicherungen bleiben erhalten.", TextWrapping = TextWrapping.Wrap, Margin = new(0,0,0,14) });
-        info.Children.Add(new TextBlock { Text = "Neues Ausgabegerät? Öffne die APO-Geräteeinrichtung, setze beim Gerät das Häkchen und bestätige die Auswahl.", TextWrapping = TextWrapping.Wrap, Margin = new(0,0,0,14) });
-        var path = new System.Windows.Controls.TextBox { Text = state.ConfigDirectory }; info.Children.Add(path);
-        info.Children.Add(new TextBlock { Text = "Konfigurationsordner · typischerweise C:\\Program Files\\EqualizerAPO\\config\nDie hörbare Funktion muss anschließend mit Wiedergabe geprüft werden.", TextWrapping = TextWrapping.Wrap, Margin = new(0,10,0,0), FontSize = 11 }); panel.Children.Add(info);
+        var info = new StackPanel();
+        info.Children.Add(new TextBlock { Text = backend.Check().Message, FontSize = 16, TextWrapping = TextWrapping.Wrap, Margin = new(0,0,0,12) });
+        info.Children.Add(new TextBlock { Text = T("Konfigurationsordner"), Margin = new(0,0,0,5) });
+        var path = new System.Windows.Controls.TextBox { Text = state.ConfigDirectory };
+        System.Windows.Automation.AutomationProperties.SetName(path, T("Konfigurationsordner"));
+        info.Children.Add(path);
+        info.Children.Add(new TextBlock { Text = T("Schließe Peace, bevor du Serein mit APO verbindest."), TextWrapping = TextWrapping.Wrap, Margin = new(0,12,0,0) });
+        info.Children.Add(new TextBlock { Text = T("Wähle neu angeschlossene Ausgabegeräte in der APO-Geräteeinrichtung aus."), TextWrapping = TextWrapping.Wrap, Margin = new(0,6,0,0) });
+        panel.Children.Add(new ScrollViewer { Content = info, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         async Task Run(bool restoring)
         {
-            if (smoke) { Status.Text = "Einrichtung im Vorschau-Test deaktiviert"; return; }
-            devices.IsEnabled = connect.IsEnabled = restore.IsEnabled = false;
+            if (smoke) { Status.Text = T("Einrichtung im Vorschau-Test deaktiviert"); return; }
+            tabs.IsEnabled = false;
             configuring = true; editTimer.Stop();
             try
             {
                 await backend.WaitForIdleAsync();
                 var candidate = new ApoBackend(path.Text.Trim());
-                if (!File.Exists(Path.Combine(Path.GetDirectoryName(candidate.DirectoryPath)!, "EqualizerAPO.dll"))) throw new IOException("Kein Equalizer-APO-Konfigurationsordner.");
+                if (!File.Exists(Path.Combine(Path.GetDirectoryName(candidate.DirectoryPath)!, "EqualizerAPO.dll"))) throw new IOException(T("Kein Equalizer-APO-Konfigurationsordner."));
                 var hash = ApoBackend.FileHash(candidate.RootPath);
                 // An elevated, short-lived helper does setup only; the UI stays unprivileged.
                 var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
                 bool reconnect = !restoring && File.Exists(Path.Combine(candidate.OwnDirectory,"setup.json"));
-                start.ArgumentList.Add(restoring ? "--restore" : reconnect ? "--reconnect" : "--setup"); start.ArgumentList.Add(candidate.DirectoryPath); start.ArgumentList.Add(hash); start.ArgumentList.Add(WindowsIdentity.GetCurrent().User!.Value);
-                using var process = Process.Start(start)!; await process.WaitForExitAsync(); if (process.ExitCode != 0) throw new IOException("Einrichtung wurde abgebrochen oder ist fehlgeschlagen.");
-                state.ConfigDirectory = candidate.DirectoryPath; backend = candidate; SaveState(); window.Close();
+                start.ArgumentList.Add(restoring ? "--restore" : reconnect ? "--reconnect" : "--setup"); start.ArgumentList.Add(candidate.DirectoryPath); start.ArgumentList.Add(hash); start.ArgumentList.Add(WindowsIdentity.GetCurrent().User!.Value); start.ArgumentList.Add(state.Language);
+                using var process = Process.Start(start)!; await process.WaitForExitAsync(); if (process.ExitCode != 0) throw new IOException(T("Einrichtung wurde abgebrochen oder ist fehlgeschlagen."));
+                state.ConfigDirectory = candidate.DirectoryPath; backend = candidate; SaveState();
+                tabs.IsEnabled = true;
+                window.Close();
                 Status.Text = candidate.Check().Message; configuring = false; if (!restoring) await ApplyCurrent();
             }
             catch (Exception ex) { Error(ex); }
-            finally { configuring = false; devices.IsEnabled = connect.IsEnabled = restore.IsEnabled = true; }
+            finally { configuring = false; tabs.IsEnabled = true; }
         }
         devices.Click += async (_, _) =>
         {
             if (smoke) return;
-            devices.IsEnabled = connect.IsEnabled = restore.IsEnabled = false;
+            tabs.IsEnabled = false;
             try
             {
                 var installation = Directory.GetParent(Path.GetFullPath(path.Text.Trim()))?.FullName;
                 var selector = installation is null ? null : new[] { "DeviceSelector.exe", "Configurator.exe" }
                     .Select(name => Path.Combine(installation, name)).FirstOrDefault(File.Exists);
                 if (selector is null)
-                    throw new FileNotFoundException("Die APO-Geräteeinrichtung wurde nicht gefunden. Prüfe den Konfigurationsordner von Equalizer APO.");
+                    throw new FileNotFoundException(T("Die APO-Geräteeinrichtung wurde nicht gefunden. Prüfe den Konfigurationsordner von Equalizer APO."));
 
                 using var process = Process.Start(new ProcessStartInfo(selector) { UseShellExecute = true, WorkingDirectory = installation! })
-                    ?? throw new IOException("Die APO-Geräteeinrichtung konnte nicht geöffnet werden.");
+                    ?? throw new IOException(T("Die APO-Geräteeinrichtung konnte nicht geöffnet werden."));
                 await process.WaitForExitAsync();
                 await PollDevices();
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { } // UAC abgebrochen
-            catch (Exception ex) { MessageBox.Show(window.IsVisible ? window : this, ex.Message, "APO-Geräteeinrichtung", MessageBoxButton.OK, MessageBoxImage.Information); }
-            finally { devices.IsEnabled = connect.IsEnabled = restore.IsEnabled = true; }
+            catch (Exception ex) { MessageBox.Show(window.IsVisible ? window : this, ex.Message, T("APO-Geräteeinrichtung"), MessageBoxButton.OK, MessageBoxImage.Information); }
+            finally { tabs.IsEnabled = true; }
         };
         connect.Click += async (_, _) => await Run(false); restore.Click += async (_, _) => await Run(true);
-        window.ShowDialog(); await Task.CompletedTask;
+        return window;
     }
     void BuildTray()
     {
-        var menu = new Forms.ContextMenuStrip(); menu.Items.Add("Serein öffnen", null, (_, _) => Dispatcher.Invoke(ShowFromTray));
-        menu.Items.Add(state.Bypass ? "EQ einschalten" : "Eigenen EQ umgehen", null, (_, _) => Dispatcher.Invoke(() => ToggleBypass(this, new())));
+        var menu = new Forms.ContextMenuStrip(); menu.Items.Add(T("Serein öffnen"), null, (_, _) => Dispatcher.Invoke(ShowFromTray));
+        menu.Items.Add(state.Bypass ? T("EQ einschalten") : T("Eigenen EQ umgehen"), null, (_, _) => Dispatcher.Invoke(() => ToggleBypass(this, new())));
         menu.Items.Add(new Forms.ToolStripSeparator());
         foreach (var p in profiles.Where(p => p.Favorite)) { var item = new Forms.ToolStripMenuItem(p.Name) { Checked = p.Id == current?.Id }; item.Click += (_, _) => Dispatcher.Invoke(() => { ProfileSearch.Text = ""; RefreshProfiles(); ProfileList.SelectedItem = p; }); menu.Items.Add(item); }
-        menu.Items.Add(new Forms.ToolStripSeparator()); menu.Items.Add("Beenden", null, (_, _) => Dispatcher.Invoke(() => { closing = true; Close(); }));
+        menu.Items.Add(new Forms.ToolStripSeparator()); menu.Items.Add(T("Beenden"), null, (_, _) => Dispatcher.Invoke(() => { closing = true; Close(); }));
         var old = tray.ContextMenuStrip; tray.ContextMenuStrip = menu; old?.Dispose();
     }
     void ShowFromTray() { Show(); WindowState = WindowState.Normal; Activate(); }
@@ -460,11 +483,11 @@ public partial class MainWindow : Window
         editTimer.Stop(); deviceTimer.Stop(); SaveState(); tray.Visible = false; tray.Dispose();
     }
     Window Dialog(string title, double width, double height, out DockPanel panel)
-    { panel = new DockPanel { Margin = new(24) }; panel.SetResourceReference(Panel.BackgroundProperty, "Bg"); var window = new Window { Title = title, Width = width, Height = height, MinWidth = 450, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = panel }; window.SetResourceReference(StyleProperty, typeof(Window)); DarkChrome.Attach(window); return window; }
+    { panel = new DockPanel { Margin = new(24) }; panel.SetResourceReference(Panel.BackgroundProperty, "Bg"); var window = new Window { Title = title, Width = width, Height = height, MinWidth = 450, Owner = this, Language = Language, WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = panel }; window.SetResourceReference(StyleProperty, typeof(Window)); DarkChrome.Attach(window); return window; }
     string? Prompt(string title, string label, string initial)
     {
         var window = Dialog(title, 440, 210, out var panel); var stack = new StackPanel(); stack.Children.Add(new TextBlock { Text = label, Margin = new(0,0,0,10) }); var box = new System.Windows.Controls.TextBox { Text = initial }; stack.Children.Add(box);
-        var save = new System.Windows.Controls.Button { Content = "Übernehmen", Margin = new(0,16,0,0), IsDefault = true }; stack.Children.Add(save); panel.Children.Add(stack);
+        var save = new System.Windows.Controls.Button { Content = T("Übernehmen"), Margin = new(0,16,0,0), IsDefault = true }; stack.Children.Add(save); panel.Children.Add(stack);
         string? result = null; save.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(box.Text) && box.Text.Trim().Length <= 100) { result = box.Text.Trim(); window.Close(); } }; window.Loaded += (_, _) => { box.Focus(); box.SelectAll(); }; window.ShowDialog(); return result;
     }
     void Error(Exception ex) => MessageBox.Show(this, ex.Message, "Serein", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -556,7 +579,7 @@ public partial class MainWindow : Window
                 bitmap.Render(visual); var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
                 using var file = File.Create(Path.Combine(AppContext.BaseDirectory, name + ".png")); encoder.Save(file);
             }
-            ThemeBox.SelectedIndex = 1;
+            ChangeAppearance("Dark", state.AccentColor);
             timer.Tick += (_, _) =>
             {
                 try
@@ -580,7 +603,7 @@ public partial class MainWindow : Window
                             FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true); FilterGrid.CommitEdit(DataGridEditingUnit.Row, true);
                             EqTabs.SelectedIndex = 0;
                             if (Curve.Layer != CurveLayer.Adjustment || !ReferenceEquals(BandList.ItemsSource, current.Adjustment)) throw new InvalidDataException("Grafische Ansicht und Kurven-Tabs sind nicht synchron.");
-                            ThemeBox.SelectedIndex = 0; break;
+                            ChangeAppearance("Light", state.AccentColor); break;
                         case 2:
                             if (!Appearance.IsLight || state.Appearance != "Light") throw new InvalidDataException("Darstellungswechsel fehlgeschlagen.");
                             Capture((FrameworkElement)Content, "Serein-Hell"); EqTabs.SelectedIndex = 1; break;
@@ -589,14 +612,31 @@ public partial class MainWindow : Window
                             catalogPreview = new CatalogWindow(dataDirectory, _ => false) { Owner = this }; catalogPreview.Show(); break;
                         case 4:
                             Capture((FrameworkElement)catalogPreview!.Content, "Serein-Katalog-Hell"); catalogPreview.Close();
-                            ThemeBox.SelectedIndex = 1; EqTabs.SelectedIndex = 0; break;
+                            ChangeAppearance("Dark", state.AccentColor); EqTabs.SelectedIndex = 0; break;
                         case 5:
                             if (Appearance.IsLight) throw new InvalidDataException("Rückwechsel zu Dunkel fehlgeschlagen.");
-                            Capture((FrameworkElement)Content, "Serein-Vorschau"); Status.Text = "Konfiguration angewendet"; OpenImportMenu(ImportButton, new()); break;
+                            Capture((FrameworkElement)Content, "Serein-Vorschau"); Status.Text = T("Konfiguration angewendet"); OpenImportMenu(ImportButton, new()); break;
                         case 6:
                             Capture(ImportButton.ContextMenu, "Serein-Import-Menue"); ImportButton.ContextMenu.IsOpen = false;
                             if (Status.Parent is not Border { Visibility: Visibility.Collapsed }) throw new InvalidDataException("Erfolgsstatus wird noch als Text angezeigt.");
                             Capture((FrameworkElement)Content, "Serein-Status-Symbol"); Status.Text = "Nicht angewendet: Testmeldung"; break;
+                        case 7:
+                            var settings = CreateSettingsWindow();
+                            settings.Show();
+                            try
+                            {
+                                var tabs = (System.Windows.Controls.TabControl)((DockPanel)settings.Content).Children[0];
+                                var general = (StackPanel)((TabItem)tabs.Items[0]).Content;
+                                var accent = general.Children.OfType<ComboBox>().Last();
+                                accent.SelectedValue = "Blue";
+                                if (state.AccentColor != "Blue" || !Equals(ImportButton.Content, T("Importieren …")))
+                                    throw new InvalidDataException("Settings or localized controls did not load.");
+                                Capture((FrameworkElement)settings.Content, "Serein-Settings");
+                                tabs.SelectedIndex = 1;
+                                Capture((FrameworkElement)settings.Content, "Serein-Settings-APO");
+                            }
+                            finally { settings.Close(); }
+                            break;
                         default:
                             if (Status.Parent is not Border { Visibility: Visibility.Visible }) throw new InvalidDataException("Fehlerstatus wird ausgeblendet.");
                             timer.Stop(); closing = true; Close(); break;

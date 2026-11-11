@@ -35,7 +35,7 @@ public partial class MainWindow
             valid &= inputValid; changed |= inputValid && value != pendingFilterValue;
         }
         SaveButton.IsEnabled = valid && changed;
-        SaveButton.ToolTip = !valid ? "Eingabe prüfen" : changed ? "Änderungen speichern" : "Alle Änderungen gespeichert";
+        SaveButton.ToolTip = !valid ? T("Eingabe prüfen") : changed ? T("Änderungen speichern") : T("Alle Änderungen gespeichert");
     }
     void PendingPreampChanged(object sender, TextChangedEventArgs e) { if (!updating) UpdateSaveButton(); }
     void PrepareFilterEdit(object sender, DataGridPreparingCellForEditEventArgs e)

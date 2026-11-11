@@ -1,6 +1,6 @@
 # Serein
 
-A Windows front end for Equalizer APO with graphic and parametric EQ, an interactive response graph, per-device profiles, Peace profile import, and a searchable AutoEQ catalog.
+A Windows front end for Equalizer APO with graphic and parametric EQ, per-device profiles, Peace profile import, and a searchable AutoEQ catalog. Available in English and German.
 
 ![Serein in dark mode with the frequency response graph and parametric filters](docs/screenshot.png)
 
@@ -8,7 +8,7 @@ A Windows front end for Equalizer APO with graphic and parametric EQ, an interac
 
 Download the installer or portable ZIP from [Releases](https://github.com/Duffed/apo-serein/releases/latest). Serein runs on Windows x64 (Windows 10 22H2 or later) and includes the .NET runtime.
 
-Install [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) separately and enable it for your output device. Close Peace, then open **APO verbinden / verwalten** in Serein to connect.
+Install [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) separately. Close Peace, then open **Settings → Equalizer APO** to enable APO for your output device and connect Serein.
 
 ## Build
 

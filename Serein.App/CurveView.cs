@@ -50,7 +50,7 @@ public sealed class CurveView : FrameworkElement
         // Transparent hit area keeps mouse input available around small handles.
         dc.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));
         var muted = Appearance.Brush("Muted"); var grid = new Pen(Appearance.Brush("Line"), 1); var accent = Appearance.Brush("Accent");
-        FormattedText Text(string s, Brush brush) => new(s, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        FormattedText Text(string s, Brush brush) => new(s, Culture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
         void Label(string s, double x, double y) => dc.DrawText(Text(s, muted), new(x, y));
         foreach (double db in new[] { -24d, -18, -12, -6, 0, 6, 12, 18 }) { dc.DrawLine(grid, new(42, Y(db)), new(42 + PlotWidth, Y(db))); Label(db.ToString("+0;-0;0"), 3, Y(db) - 7); }
         foreach (double hz in new[] { 20d, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 }) { dc.DrawLine(grid, new(X(hz), 12), new(X(hz), 12 + PlotHeight)); Label(hz >= 1000 ? hz / 1000 + "k" : hz.ToString(), X(hz) - 8, 12 + PlotHeight + 10); }
@@ -89,7 +89,7 @@ public sealed class CurveView : FrameworkElement
                         if (i == 0) path.BeginFigure(pt, false, false); else path.LineTo(pt, true, false);
                     }
                 single.Freeze(); dc.DrawGeometry(null, new Pen(muted, 1.5) { DashStyle = DashStyles.Dash }, single);
-                var legend = Text(selected is EqFilter selectedFilter ? $"Filter {Profile.Filters.IndexOf(selectedFilter) + 1} ({selectedFilter.Type}) · gestrichelt · ohne Preamp" : "Einzelband · gestrichelt · ohne Preamp", muted);
+                var legend = Text(selected is EqFilter selectedFilter ? F("Filter {0} ({1}) · gestrichelt · ohne Preamp", Profile.Filters.IndexOf(selectedFilter) + 1, selectedFilter.Type) : T("Einzelband · gestrichelt · ohne Preamp"), muted);
                 dc.DrawRectangle(Appearance.Brush("Panel"), null, new Rect(47, 15, legend.Width + 8, legend.Height + 4)); dc.DrawText(legend, new Point(51, 17));
             }
         }
@@ -105,7 +105,7 @@ public sealed class CurveView : FrameworkElement
         else
         {
             var points = Layer == CurveLayer.Adjustment ? Profile.Adjustment : Profile.Graphic;
-            for (int i = 0; i < points.Count; i++) Add(points[i], points[i].Frequency, Layer == CurveLayer.Adjustment ? "Grafischer EQ" : $"Importierter EQ · Punkt {i + 1}", true, true, Layer == CurveLayer.ImportedGraphic);
+            for (int i = 0; i < points.Count; i++) Add(points[i], points[i].Frequency, Layer == CurveLayer.Adjustment ? T("Grafischer EQ") : F("Importierter EQ · Punkt {0}", i + 1), true, true, Layer == CurveLayer.ImportedGraphic);
         }
         foreach (var handle in handles.OrderBy(h => ReferenceEquals(h.Model, selected)))
         {
@@ -128,10 +128,10 @@ public sealed class CurveView : FrameworkElement
     {
         double hz = handle.Model is EqFilter f ? f.Frequency : ((EqPoint)handle.Model).Frequency;
         double gain = handle.Model is EqFilter filter ? filter.Gain : ((EqPoint)handle.Model).Gain;
-        string value = $"{handle.Label} · {hz:0.#} Hz" + (handle.Gain ? $" · {gain:+0.##;-0.##;0} dB" : "");
-        if (handle.Model is EqFilter qFilter) value += qFilter.UseQ ? $" · Q {qFilter.Q:0.###}" : " · Q Standard";
-        if (!handle.Enabled) value += " · deaktiviert";
-        return !instruction ? value : value + (handle.Enabled ? "\nZiehen: " + (handle.Frequency ? "Frequenz" : "") + (handle.Frequency && handle.Gain ? " und " : "") + (handle.Gain ? "Gain" : "") + (handle.Gain ? " · Shift: nur vertikal" : "") + (handle.Model is EqFilter ? "\nMausrad: Q ändern" : "") + " · Escape: zurücksetzen" : "\nEQ oder Filter ist deaktiviert.");
+        string value = F("{0} · {1:0.#} Hz", handle.Label, hz) + (handle.Gain ? F(" · {0:+0.##;-0.##;0} dB", gain) : "");
+        if (handle.Model is EqFilter qFilter) value += qFilter.UseQ ? F(" · Q {0:0.###}", qFilter.Q) : T(" · Q Standard");
+        if (!handle.Enabled) value += T(" · deaktiviert");
+        return !instruction ? value : value + (handle.Enabled ? T("\nZiehen: ") + (handle.Frequency ? T("Frequenz") : "") + (handle.Frequency && handle.Gain ? T(" und ") : "") + (handle.Gain ? "Gain" : "") + (handle.Gain ? T(" · Shift: nur vertikal") : "") + (handle.Model is EqFilter ? T("\nMausrad: Q ändern") : "") + T(" · Escape: zurücksetzen") : T("\nEQ oder Filter ist deaktiviert."));
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

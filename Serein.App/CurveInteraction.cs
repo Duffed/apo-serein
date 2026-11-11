@@ -12,8 +12,8 @@ public partial class MainWindow
     void UpdateCurveLayers()
     {
         var previous = CurveLayerTabs.SelectedItem as CurveLayerChoice;
-        var layers = new List<CurveLayerChoice> { new(CurveLayer.Adjustment, "Grafischer EQ"), new(CurveLayer.Filters, "Parametrische Filter") };
-        if (current.Graphic.Count > 0) layers.Add(new(CurveLayer.ImportedGraphic, "Importierter EQ"));
+        var layers = new List<CurveLayerChoice> { new(CurveLayer.Adjustment, T("Grafischer EQ")), new(CurveLayer.Filters, T("Parametrische Filter")) };
+        if (current.Graphic.Count > 0) layers.Add(new(CurveLayer.ImportedGraphic, T("Importierter EQ")));
         bool wasUpdating = updating; updating = true;
         try
         {
@@ -38,7 +38,7 @@ public partial class MainWindow
             Curve.Layer = layer; EqTabs.SelectedIndex = layer == CurveLayer.Filters ? 1 : 0;
             BandList.ItemsSource = layer == CurveLayer.ImportedGraphic ? current.Graphic : current.Adjustment;
             BandActions.Visibility = layer == CurveLayer.ImportedGraphic ? Visibility.Collapsed : Visibility.Visible;
-            GraphicStageLabel.Text = layer == CurveLayer.ImportedGraphic ? "Importierter grafischer EQ" : "Persönliche Anpassung · zusätzlich zur importierten Korrektur";
+            GraphicStageLabel.Text = layer == CurveLayer.ImportedGraphic ? T("Importierter grafischer EQ") : T("Persönliche Anpassung · zusätzlich zur importierten Korrektur");
             if (layer == CurveLayer.Filters && FilterGrid.SelectedItem is EqFilter filter) Curve.SelectFilter(filter);
         }
         finally { syncingEqView = false; }
@@ -54,7 +54,7 @@ public partial class MainWindow
     void StartCurveEdit(object? sender, CancelEventArgs e)
     {
         if (!FilterGrid.CommitEdit(DataGridEditingUnit.Cell, true) || !FilterGrid.CommitEdit(DataGridEditingUnit.Row, true))
-        { e.Cancel = true; Status.Text = "Bitte zuerst die ungültige Filtereingabe korrigieren."; return; }
+        { e.Cancel = true; Status.Text = T("Bitte zuerst die ungültige Filtereingabe korrigieren."); return; }
         try { ApoFormat.Validate(current); }
         catch (Exception ex) { e.Cancel = true; Status.Text = ex.Message; return; }
         editTimer.Stop();

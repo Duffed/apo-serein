@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 using System.Text.RegularExpressions;
 
 namespace Serein.Core;
@@ -29,7 +30,7 @@ public sealed class AutoEqCatalog(string cacheDirectory)
     public async Task RefreshAsync()
     {
         var text = await GetText("https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/README.md");
-        var entries = Parse(text); if (entries.Count < 100) throw new InvalidDataException("AutoEQ-Index unvollständig; bisheriger Cache bleibt erhalten.");
+        var entries = Parse(text); if (entries.Count < 100) throw new InvalidDataException(T("AutoEQ-Index unvollständig; bisheriger Cache bleibt erhalten."));
         AtomicFile.Write(Path.Combine(cacheDirectory, "index.md"), text); Entries = entries;
     }
     public async Task<Profile> DownloadAsync(CatalogEntry entry)
@@ -57,7 +58,7 @@ public sealed class AutoEqCatalog(string cacheDirectory)
         else
         {
             try { text = await GetText("https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/" + EncodePath(entry.Path) + "/README.md"); }
-            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) { return new(entry.Measurement, entry.Category, null, "Keine zusätzlichen Hinweise veröffentlicht."); }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) { return new(entry.Measurement, entry.Category, null, T("Keine zusätzlichen Hinweise veröffentlicht.")); }
             AtomicFile.Write(cache, text);
         }
         return ParseInfo(entry, text);
@@ -76,14 +77,14 @@ public sealed class AutoEqCatalog(string cacheDirectory)
             notes.Add(line);
             if (notes.Sum(n => n.Length) > 5000) break;
         }
-        return new(entry.Measurement, entry.Category, target, notes.Count == 0 ? "Keine zusätzlichen Hinweise veröffentlicht." : string.Join("\n\n", notes));
+        return new(entry.Measurement, entry.Category, target, notes.Count == 0 ? T("Keine zusätzlichen Hinweise veröffentlicht.") : string.Join("\n\n", notes));
     }
     static async Task<string> GetText(string url)
     {
         using var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead); response.EnsureSuccessStatusCode();
-        if (response.Content.Headers.ContentLength > 10_000_000) throw new InvalidDataException("Download zu groß.");
+        if (response.Content.Headers.ContentLength > 10_000_000) throw new InvalidDataException(T("Download zu groß."));
         using var stream = await response.Content.ReadAsStreamAsync(); using var output = new MemoryStream(); var buffer = new byte[8192]; int n;
-        while ((n = await stream.ReadAsync(buffer)) > 0) { if (output.Length + n > 10_000_000) throw new InvalidDataException("Download zu groß."); output.Write(buffer, 0, n); }
+        while ((n = await stream.ReadAsync(buffer)) > 0) { if (output.Length + n > 10_000_000) throw new InvalidDataException(T("Download zu groß.")); output.Write(buffer, 0, n); }
         return System.Text.Encoding.UTF8.GetString(output.ToArray());
     }
 }

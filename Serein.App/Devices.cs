@@ -7,7 +7,7 @@ public static class Devices
 {
     public static List<AudioDevice> List()
     {
-        var list = new List<AudioDevice> { new("*", "Alle Wiedergabegeräte") };
+        var list = new List<AudioDevice> { new("*", T("Alle Wiedergabegeräte")) };
         using var render = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render");
         if (render == null) return list;
         foreach (var key in render.GetSubKeyNames())

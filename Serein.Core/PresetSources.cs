@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 using System.Text;
 
 namespace Serein.Core;
@@ -20,7 +21,7 @@ public sealed class PresetSources(string cacheDirectory, string indexPath, strin
     }
     static EqSettings Read(string path, string name)
     {
-        if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException("Original-Preset ist zu groß.");
+        if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException(T("Original-Preset ist zu groß."));
         return EqSettings.Capture(ApoFormat.Import(File.ReadAllText(path), name));
     }
     public EqSettings? ReadLocal(Profile p)
@@ -40,6 +41,6 @@ public sealed class PresetSources(string cacheDirectory, string indexPath, strin
     {
         var local = await Task.Run(() => ReadLocal(p)); if (local != null) return local;
         if (Entry(p) is CatalogEntry entry) return EqSettings.Capture(await catalog.DownloadAsync(entry));
-        throw new IOException("Das ursprüngliche Preset ist nicht mehr verfügbar. Die Originaldatei erneut importieren oder das Preset aus dem Katalog laden.");
+        throw new IOException(T("Das ursprüngliche Preset ist nicht mehr verfügbar. Die Originaldatei erneut importieren oder das Preset aus dem Katalog laden."));
     }
 }

@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -35,7 +36,7 @@ public class EqPoint : Observable
 }
 public class Profile : Observable
 {
-    string name = "Neues Profil"; double preamp; bool favorite;
+    string name = T("Neues Profil"); double preamp; bool favorite;
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get => name; set => Set(ref name, value); }
     public double Preamp { get => preamp; set => Set(ref preamp, value); }
@@ -57,9 +58,9 @@ public class Profile : Observable
                 var measurement = MeasurementSource ?? (marker < 0 ? "" : Uri.UnescapeDataString(Source[(marker + 9)..].Split('/')[0]));
                 return "AutoEQ" + (string.IsNullOrWhiteSpace(measurement) ? "" : " · " + measurement);
             }
-            if (SourceFile?.EndsWith(".peace", StringComparison.OrdinalIgnoreCase) == true || Source?.EndsWith(".peace", StringComparison.OrdinalIgnoreCase) == true) return "Peace · lokal";
-            if (SourceFile != null || Source?.StartsWith("Import:") == true) return "APO-Datei · lokal";
-            return Source ?? "Eigenes Profil";
+            if (SourceFile?.EndsWith(".peace", StringComparison.OrdinalIgnoreCase) == true || Source?.EndsWith(".peace", StringComparison.OrdinalIgnoreCase) == true) return T("Peace · lokal");
+            if (SourceFile != null || Source?.StartsWith("Import:") == true) return T("APO-Datei · lokal");
+            return Source == "Eingefügter APO-Text" ? T("Eingefügter APO-Text") : Source ?? T("Eigenes Profil");
         }
     }
     public ObservableCollection<EqFilter> Filters { get; set; } = [];
@@ -80,6 +81,8 @@ public class AppState
     public List<string> PeaceImportIssues { get; set; } = [];
     public bool CompactProfiles { get; set; }
     public string Appearance { get; set; } = "Dark";
+    public string Language { get; set; } = "System";
+    public string AccentColor { get; set; } = "System";
     public double SidebarWidth { get; set; } = 245;
     public List<Profile> TrashedProfiles { get; set; } = [];
     public List<string> SuppressedPeaceFiles { get; set; } = [];
@@ -90,8 +93,8 @@ public static class ProfileStore
     public static AppState Load(string path)
     {
         if (!File.Exists(path)) return new();
-        var state = JsonSerializer.Deserialize<AppState>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Leere Profildatei.");
-        if (state.Version != 1) throw new InvalidDataException("Unbekannte Profilversion; Daten wurden nicht verändert.");
+        var state = JsonSerializer.Deserialize<AppState>(File.ReadAllText(path), Json) ?? throw new InvalidDataException(T("Leere Profildatei."));
+        if (state.Version != 1) throw new InvalidDataException(T("Unbekannte Profilversion; Daten wurden nicht verändert."));
         foreach (var p in state.Profiles) { ApoFormat.Validate(p); p.PresetOriginal?.Validate(); }
         return state;
     }

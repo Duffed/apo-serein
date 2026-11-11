@@ -1,3 +1,4 @@
+using static Serein.Core.UiLanguage;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -35,7 +36,7 @@ public sealed class ApoBackend(string directory) : IAudioBackend
         // MMDevice endpoint IDs are persistence keys, not APO device patterns.
         // APO matches against "device name connection name {endpoint GUID}".
         var match = Regex.Match(endpointId, @"^\{0\.0\.0\.\d+\}\.\{([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\}$");
-        if (!match.Success) throw new InvalidDataException("Ungültige Windows-Gerätekennung.");
+        if (!match.Success) throw new InvalidDataException(T("Ungültige Windows-Gerätekennung."));
         return "{" + match.Groups[1].Value + "}";
     }
     SetupManifest? Manifest() => File.Exists(ManifestPath) ? JsonSerializer.Deserialize<SetupManifest>(File.ReadAllText(ManifestPath)) : null;
@@ -43,21 +44,21 @@ public sealed class ApoBackend(string directory) : IAudioBackend
     {
         try
         {
-            if (!File.Exists(RootPath)) return new(false, false, "APO-Konfiguration nicht gefunden.");
+            if (!File.Exists(RootPath)) return new(false, false, T("APO-Konfiguration nicht gefunden."));
             var m = Manifest();
-            if (m == null) return new(true, false, "Vorschau · APO noch nicht verbunden");
+            if (m == null) return new(true, false, T("Vorschau · APO noch nicht verbunden"));
             bool valid = m.ManagedRootHash == FileHash(RootPath) && m.ActiveHash == FileHash(ActivePath);
-            return new(true, valid, valid ? "APO verbunden" : "APO-Konfiguration geändert · zum Übernehmen erneut verbinden");
+            return new(true, valid, valid ? T("APO verbunden") : T("APO-Konfiguration geändert · zum Übernehmen erneut verbinden"));
         }
         catch (Exception e) { return new(false, false, e.Message); }
     }
     public void Setup(string expectedRootHash, bool reconnect = false)
     {
-        if (FileHash(RootPath) != expectedRootHash) throw new IOException("Die APO-Konfiguration wurde inzwischen geändert.");
+        if (FileHash(RootPath) != expectedRootHash) throw new IOException(T("Die APO-Konfiguration wurde inzwischen geändert."));
         SetupManifest? previous = null;
         if (File.Exists(ManifestPath))
         {
-            if (!reconnect) { if (!Check().Connected) throw new IOException("APO wurde zwischenzeitlich geändert. Bitte „Neu verbinden“ verwenden."); return; }
+            if (!reconnect) { if (!Check().Connected) throw new IOException(T("APO wurde zwischenzeitlich geändert. Bitte „Neu verbinden“ verwenden.")); return; }
             previous = Manifest();
         }
         var original = File.ReadAllBytes(RootPath);
@@ -69,9 +70,9 @@ public sealed class ApoBackend(string directory) : IAudioBackend
             if (line.Length == 0 || line.StartsWith('#')) continue;
             if (Regex.IsMatch(line, "^Include:\\s*\"?peace\\.txt\"?\\s*$", RegexOptions.IgnoreCase)) { peaceIncludes++; continue; }
             if (reconnect && Regex.IsMatch(line, "^Include:\\s*\"?Serein[/\\\\]active\\.txt\"?\\s*$", RegexOptions.IgnoreCase)) { ownInclude = true; continue; }
-            throw new InvalidDataException("Die Hauptkonfiguration enthält weitere Befehle. Automatische Einrichtung unterstützt eine leere oder reine Peace-Konfiguration; vorhandene Befehle werden nicht überschrieben.");
+            throw new InvalidDataException(T("Die Hauptkonfiguration enthält weitere Befehle. Automatische Einrichtung unterstützt eine leere oder reine Peace-Konfiguration; vorhandene Befehle werden nicht überschrieben."));
         }
-        if (peaceIncludes > 1) throw new InvalidDataException("Mehrfache Peace-Einbindung gefunden.");
+        if (peaceIncludes > 1) throw new InvalidDataException(T("Mehrfache Peace-Einbindung gefunden."));
         Directory.CreateDirectory(OwnDirectory);
         if (reconnect)
         {
@@ -82,7 +83,7 @@ public sealed class ApoBackend(string directory) : IAudioBackend
             // Reconnecting our own root must not turn the restore backup into a self-include.
             if (previous != null && ownInclude && peaceIncludes == 0) original = Convert.FromBase64String(previous.OriginalBase64);
         }
-        if (FileHash(RootPath) != expectedRootHash) throw new IOException("APO wurde während der Einrichtung geändert. Bitte Peace beenden und erneut verbinden.");
+        if (FileHash(RootPath) != expectedRootHash) throw new IOException(T("APO wurde während der Einrichtung geändert. Bitte Peace beenden und erneut verbinden."));
         var priorManifestText = File.Exists(ManifestPath) ? File.ReadAllText(ManifestPath) : null;
         var priorActiveText = File.Exists(ActivePath) ? File.ReadAllText(ActivePath) : null;
         var managed = "# Serein – Original in Serein/setup.json gesichert\nInclude: Serein/active.txt\n";
@@ -101,8 +102,8 @@ public sealed class ApoBackend(string directory) : IAudioBackend
     public async Task WaitForIdleAsync() { await gate.WaitAsync(); gate.Release(); }
     public void Restore(string expectedRootHash)
     {
-        var m = Manifest() ?? throw new IOException("Keine Sicherung vorhanden.");
-        if (FileHash(RootPath) != expectedRootHash || expectedRootHash != m.ManagedRootHash) throw new IOException("Externe Änderung der Hauptkonfiguration. Wiederherstellung wurde angehalten.");
+        var m = Manifest() ?? throw new IOException(T("Keine Sicherung vorhanden."));
+        if (FileHash(RootPath) != expectedRootHash || expectedRootHash != m.ManagedRootHash) throw new IOException(T("Externe Änderung der Hauptkonfiguration. Wiederherstellung wurde angehalten."));
         var temp = RootPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try { File.WriteAllBytes(temp, Convert.FromBase64String(m.OriginalBase64)); File.Move(temp, RootPath, true); File.Delete(ManifestPath); }
         finally { if (File.Exists(temp)) File.Delete(temp); }
@@ -119,14 +120,14 @@ public sealed class ApoBackend(string directory) : IAudioBackend
             await gate.WaitAsync();
             try
             {
-                if (request != Volatile.Read(ref revision)) return new ApplyResult(false, 0, "Neuere Auswahl vorgemerkt");
+                if (request != Volatile.Read(ref revision)) return new ApplyResult(false, 0, T("Neuere Auswahl vorgemerkt"));
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 var status = Check(); if (!status.Connected) throw new IOException(status.Message);
                 var m = Manifest()!;
                 AtomicFile.Write(ActivePath, content);
                 m.ActiveHash = FileHash(ActivePath);
                 AtomicFile.Write(ManifestPath, JsonSerializer.Serialize(m, ProfileStore.Json));
-                return new ApplyResult(true, watch.Elapsed.TotalMilliseconds, "Konfiguration angewendet");
+                return new ApplyResult(true, watch.Elapsed.TotalMilliseconds, T("Konfiguration angewendet"));
             }
             finally { gate.Release(); }
         });

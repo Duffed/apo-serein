@@ -102,13 +102,13 @@
    </Style>
    <Style x:Key="FavoriteToggle" TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
     <Setter Property="Width" Value="34"/><Setter Property="Height" Value="34"/><Setter Property="MinWidth" Value="0"/>
-    <Setter Property="Cursor" Value="Arrow"/><Setter Property="ToolTip" Value="Zu Favoriten hinzufügen"/>
+    <Setter Property="Cursor" Value="Arrow"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
      <Border x:Name="Body" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="4">
       <TextBlock x:Name="Star" Text="&#xE734;" FontFamily="Segoe MDL2 Assets" FontSize="19" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
      </Border>
      <ControlTemplate.Triggers>
-      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Star" Property="Text" Value="&#xE735;"/><Setter TargetName="Star" Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="ToolTip" Value="Aus Favoriten entfernen"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Star" Property="Text" Value="&#xE735;"/><Setter TargetName="Star" Property="Foreground" Value="{DynamicResource Accent}"/></Trigger>
       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Body" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
       <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
      </ControlTemplate.Triggers>

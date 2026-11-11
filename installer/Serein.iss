@@ -6,7 +6,7 @@
 [Setup]
 AppId={{8C64B0B1-52D9-4853-B8E4-580EF4510215}
 AppName=Serein
-AppVersion=0.1
+AppVersion=0.2
 AppPublisher=Serein
 DefaultDirName={localappdata}\Programs\Serein
 DefaultGroupName=Serein
